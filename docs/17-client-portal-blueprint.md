@@ -1,0 +1,1 @@
+# Deprecated\n\nThis document is deprecated. Use `docs/30-frontend-guide.md` instead.\n

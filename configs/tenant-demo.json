@@ -1,0 +1,110 @@
+{
+  "tenantId": "tenant-demo",
+  "name": "Demo Tenant",
+  "channels": {
+    "whatsapp": {
+      "phoneNumberId": "REPLACE_ME",
+      "accessTokenSecretId": "REPLACE_ME"
+    },
+    "telegram": {
+      "botTokenSecretId": "REPLACE_ME"
+    }
+  },
+  "policy": {
+    "contactPolicy": {
+      "timezone": "America/Bogota",
+      "maxContactsPerDay": 1,
+      "noMultichannelSameWeekAfterDirectContact": true,
+      "hours": {
+        "monFri": {
+          "from": "07:00",
+          "to": "19:00"
+        },
+        "sat": {
+          "from": "08:00",
+          "to": "15:00"
+        },
+        "sunBlocked": true,
+        "holidaysBlocked": true
+      },
+      "channelsAllowed": {
+        "whatsapp": true,
+        "telegram": true
+      },
+      "countryCode": "CO"
+    },
+    "contactLimitsByStage": {
+      "EARLY": {
+        "maxOutboundPerDay": 1,
+        "maxOutboundPerWeek": 1
+      },
+      "MID": {
+        "maxOutboundPerDay": 1,
+        "maxOutboundPerWeek": 3
+      },
+      "LATE": {
+        "maxOutboundPerDay": 1,
+        "maxOutboundPerWeek": 4
+      }
+    },
+    "cooldowns": {
+      "rejectedOfferDays": 3,
+      "noResponseDays": 2,
+      "brokenPromiseDays": 1
+    },
+    "offerPolicy": {
+      "ladder": [
+        {
+          "attempt": 1,
+          "maxDiscountPct": 0
+        },
+        {
+          "attempt": 2,
+          "maxDiscountPct": 5
+        },
+        {
+          "attempt": 3,
+          "maxDiscountPct": 10
+        }
+      ],
+      "maxAttempts": 6,
+      "hardCapDiscountPct": 15
+    },
+    "auditPolicy": {
+      "retentionDays": 90,
+      "storeMessageText": true,
+      "storeDecisionPayloads": true
+    },
+    "exportPolicy": {
+      "enabled": false,
+      "s3Bucket": "",
+      "s3Prefix": "tenants/tenant-demo/audit/"
+    },
+    "notificationPolicy": {
+      "email": {
+        "enabled": true,
+        "fromAddress": "REPLACE_ME_VERIFIED_SES_SENDER@example.com",
+        "toAddresses": [
+          "REPLACE_ME_OPS_QUEUE@example.com"
+        ],
+        "subjectPrefix": "[CollectionsAI]",
+        "includeInboundText": true
+      }
+    },
+    "handoffPolicy": {
+      "enabled": true,
+      "stageMin": "MID",
+      "intents": [
+        "DISPUTE",
+        "ANGRY"
+      ],
+      "retentionDays": 30,
+      "storeInboundText": true
+    },
+    "tonePolicy": {
+      "T1": "amable",
+      "T2": "directo",
+      "T3": "formal"
+    }
+  }
+}

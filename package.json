@@ -1,0 +1,53 @@
+{
+  "name": "collections-ai-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "serverless package",
+    "deploy:dev": "serverless deploy --stage dev --verbose",
+    "remove:dev": "serverless remove --stage dev",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.{ts,js,json,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,json,md}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "seed:country-policies": "node scripts/seed-country-policies.mjs",
+    "seed:whatsapp-mappings": "node scripts/seed-whatsapp-mappings.mjs",
+    "seed:telegram-bot-mappings": "node scripts/seed-telegram-bot-mappings.mjs"
+  },
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.8.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.600.0",
+    "@aws-sdk/client-dynamodb": "^3.758.0",
+    "@aws-sdk/client-secrets-manager": "^3.758.0",
+    "@aws-sdk/client-ses": "^3.600.0",
+    "@aws-sdk/client-sqs": "^3.758.0",
+    "@aws-sdk/lib-dynamodb": "^3.758.0",
+    "date-holidays": "^3.24.0",
+    "luxon": "^3.5.0",
+    "ulid": "^2.3.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@serverless/typescript": "^4.27.1",
+    "@types/aws-lambda": "^8.10.147",
+    "@types/node": "^22.10.7",
+    "@typescript-eslint/eslint-plugin": "^8.51.0",
+    "@typescript-eslint/parser": "^8.51.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^8.10.2",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^4.2.5",
+    "eslint-plugin-simple-import-sort": "^8.0.0",
+    "prettier": "^2.8.8",
+    "serverless": "^3.40.0",
+    "serverless-esbuild": "^1.54.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.8"
+  }
+}
