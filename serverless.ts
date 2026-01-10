@@ -10,7 +10,8 @@ const config = {
   plugins: ['serverless-esbuild'],
   provider: {
     name: 'aws',
-    runtime: 'nodejs20.x',
+    profile: 'adrian-personal',
+    runtime: 'nodejs22.x',
     region: "${opt:region, 'us-east-1'}",
     stage: "${opt:stage, 'dev'}",
     logRetentionInDays: 14,
@@ -434,4 +435,4 @@ const config = {
   },
 };
 
-export default config as unknown as AWS;
+module.exports = config as unknown as AWS;
