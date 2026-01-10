@@ -2,7 +2,6 @@
   "name": "collections-ai-mvp",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "build": "serverless package",
     "deploy:dev": "serverless deploy --stage dev --verbose",
