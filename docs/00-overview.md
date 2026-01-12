@@ -1,5 +1,29 @@
 # Collections AI MVP — Overview
 
+## AI Quick Start (Copilot/Cursor/Claude)
+
+This repo builds a multi-tenant, multi-country collections platform (WhatsApp/Telegram).  
+Goal: an intelligent **goal-driven conversational agent**, NOT a rigid chatbot.
+
+Non-negotiables:
+- TypeScript strict, avoid `any` (use `unknown` + type guards).
+- Use structured outputs (JSON schema/Zod) for NLU/Planner.
+- LLM does NOT decide business logic: strategy (NBA), compliance, validation are deterministic.
+- Must handle typos/slang, natural dates/money with clarification on ambiguity.
+- Must steer off-topic, end on abuse (with audit), and respect country+tenant policies.
+
+Start here (in order):
+1) `docs/AI_IMPLEMENTATION_PLAN.md`
+2) `src/handlers/orchestrator.ts`
+3) `src/core/policy/policyCheck.ts`
+4) `src/core/nba/nextBestAction.ts`
+5) `src/core/llm/*`
+
+DoD:
+- `npm run typecheck` + `npm test` pass
+- no new `any`
+- tests added for new behavior
+
 ## Start here (non-redundant)
 - `docs/30-frontend-guide.md` (screens/components/routes for Admin + Client Portal)
 - `docs/31-api-contracts.md` (frontend API contracts)
