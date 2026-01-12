@@ -1,1 +1,17 @@
 node_modules
+
+# Serverless Framework build artifacts
+.serverless/
+cloudformation-template-*.json
+serverless-state.json
+cloudformation-template-update-stack.json
+
+# General build/deploy outputs
+*.zip
+dist/
+tmp/
+*.log
+
+# IDE/editor files
+.vscode/
+.DS_Store

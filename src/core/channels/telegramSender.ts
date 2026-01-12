@@ -14,7 +14,7 @@ export async function sendTelegram(input: { tenant: Tenant; chatId: string; text
   const tg = input.tenant.channels.telegram;
   if (!tg) throw new Error('Tenant has no Telegram channel configured');
 
-  const token = await getSecretString(tg.botTokenSecretId);
+  const token = (await getSecretString(tg.botTokenSecretId)).trim();
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
 
   const resp = await fetch(url, {
