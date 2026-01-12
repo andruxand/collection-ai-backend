@@ -503,7 +503,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/whatsappWebhook.handler",
               "Runtime": "nodejs22.x",
@@ -556,7 +556,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/telegramWebhook.handler",
               "Runtime": "nodejs22.x",
@@ -609,7 +609,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/orchestrator.handler",
               "Runtime": "nodejs22.x",
@@ -662,7 +662,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/adminUpsertTenant.handler",
               "Runtime": "nodejs22.x",
@@ -715,7 +715,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/adminListHandoffs.handler",
               "Runtime": "nodejs22.x",
@@ -768,7 +768,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/adminCloseHandoff.handler",
               "Runtime": "nodejs22.x",
@@ -821,7 +821,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/platformListHandoffs.handler",
               "Runtime": "nodejs22.x",
@@ -874,7 +874,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/platformHandoffDetail.handler",
               "Runtime": "nodejs22.x",
@@ -927,7 +927,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/platformListOperators.handler",
               "Runtime": "nodejs22.x",
@@ -980,7 +980,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/platformInviteUser.handler",
               "Runtime": "nodejs22.x",
@@ -1033,7 +1033,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/platformSetUserStatus.handler",
               "Runtime": "nodejs22.x",
@@ -1086,7 +1086,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/platformIssueClientApiKey.handler",
               "Runtime": "nodejs22.x",
@@ -1139,7 +1139,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/platformListClientApiKeys.handler",
               "Runtime": "nodejs22.x",
@@ -1192,7 +1192,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/platformDisableClientApiKey.handler",
               "Runtime": "nodejs22.x",
@@ -1245,7 +1245,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/platformListAudit.handler",
               "Runtime": "nodejs22.x",
@@ -1298,7 +1298,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/clientUpsertDebtors.handler",
               "Runtime": "nodejs22.x",
@@ -1351,7 +1351,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/platformAssignHandoff.handler",
               "Runtime": "nodejs22.x",
@@ -1404,7 +1404,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/platformGetTenant.handler",
               "Runtime": "nodejs22.x",
@@ -1457,7 +1457,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/platformUpsertTenant.handler",
               "Runtime": "nodejs22.x",
@@ -1510,7 +1510,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/platformCloseHandoff.handler",
               "Runtime": "nodejs22.x",
@@ -1563,7 +1563,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/handoffNotifier.handler",
               "Runtime": "nodejs22.x",
@@ -1616,7 +1616,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/adminExportAudit.handler",
               "Runtime": "nodejs22.x",
@@ -1669,7 +1669,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/adminUpsertDebtors.handler",
               "Runtime": "nodejs22.x",
@@ -1722,7 +1722,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/remindersTick.handler",
               "Runtime": "nodejs22.x",
@@ -1775,7 +1775,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
-                "S3Key": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z/collections-ai-mvp.zip"
+                "S3Key": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z/collections-ai-mvp.zip"
               },
               "Handler": "src/handlers/outboundTick.handler",
               "Runtime": "nodejs22.x",
@@ -4404,7 +4404,7 @@
     "isDashboardMonitoringPreconfigured": false
   },
   "package": {
-    "artifactDirectoryName": "serverless/collections-ai-mvp/dev/1768185364071-2026-01-12T02:36:04.071Z",
+    "artifactDirectoryName": "serverless/collections-ai-mvp/dev/1768191004434-2026-01-12T04:10:04.434Z",
     "artifact": "collections-ai-mvp.zip"
   }
 }

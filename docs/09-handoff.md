@@ -37,6 +37,12 @@ See `docs/07-tenant-config.md`:
 }
 ```
 
+## Runtime behavior (MVP)
+When a handoff is triggered:
+- A HANDOFF case is persisted (DynamoDB) and optionally emitted to SQS.
+- The orchestrator replies with an acknowledgement (asking for verification details if available).
+- The conversation state is moved to `HANDOFF` to prevent continuing automated negotiation in the same thread.
+
 ## Admin endpoints (MVP ops)
 - `GET /admin/handoffs?tenantId=tenant-demo&limit=50`
 - `POST /admin/handoffs/close` with:

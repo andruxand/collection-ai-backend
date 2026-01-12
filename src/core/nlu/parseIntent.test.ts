@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { ConversationState } from '../types';
 
 vi.mock('../llm/llmClient', () => ({
   llmJson: vi.fn(async () => ({ intent: 'UNKNOWN', entities: {}, confidence: 0.2, topicShift: false })),
@@ -40,5 +41,22 @@ describe('parseIntent (deterministic menu)', () => {
   it('maps "ver detalle" to ASK_DETAIL', async () => {
     const res = await parseIntent({ text: 'ver detalle' });
     expect(res.intent).toBe('ASK_DETAIL');
+  });
+
+  it('maps "1" to SELECT_OFFER when in OFFER_MENU', async () => {
+    const conversation: ConversationState = { state: 'OFFER_MENU', slots: {}, attemptCount: 1 };
+    const res = await parseIntent({ text: '1', conversation });
+    expect(res.intent).toBe('SELECT_OFFER');
+    expect(res.entities.offerIndex).toBe(1);
+  });
+
+  it('maps "sí" to AFFIRM', async () => {
+    const res = await parseIntent({ text: 'sí' });
+    expect(res.intent).toBe('AFFIRM');
+  });
+
+  it('maps "no quiero pagar" to REFUSE_PAY', async () => {
+    const res = await parseIntent({ text: 'no quiero pagar' });
+    expect(res.intent).toBe('REFUSE_PAY');
   });
 });

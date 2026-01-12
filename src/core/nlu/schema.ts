@@ -3,6 +3,10 @@ import { z } from 'zod';
 export const NluSchema = z.object({
   intent: z.enum([
     'GREETING',
+    'AFFIRM',
+    'DENY',
+    'SELECT_OFFER',
+    'REFUSE_PAY',
     'PAY_NOW',
     'NEGOTIATE',
     'PROMISE_PAYMENT',
@@ -22,6 +26,7 @@ export const NluSchema = z.object({
         .regex(/^\d{4}-\d{2}-\d{2}$/)
         .optional(),
       paymentMethod: z.enum(['PSE', 'CARD', 'TRANSFER', 'CASH']).optional(),
+      offerIndex: z.number().int().positive().optional(),
     })
     .default({}),
   confidence: z.number().min(0).max(1).default(0.5),
@@ -35,6 +40,10 @@ export const NLU_JSON_SCHEMA = {
       type: 'string',
       enum: [
         'GREETING',
+        'AFFIRM',
+        'DENY',
+        'SELECT_OFFER',
+        'REFUSE_PAY',
         'PAY_NOW',
         'NEGOTIATE',
         'PROMISE_PAYMENT',
@@ -53,6 +62,7 @@ export const NLU_JSON_SCHEMA = {
         amountCop: { type: 'integer' },
         dateIso: { type: 'string' },
         paymentMethod: { type: 'string', enum: ['PSE', 'CARD', 'TRANSFER', 'CASH'] },
+        offerIndex: { type: 'integer' },
       },
       additionalProperties: false,
     },

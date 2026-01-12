@@ -105,6 +105,41 @@
       "T1": "amable",
       "T2": "directo",
       "T3": "formal"
+    },
+    "strategyPolicy": {
+      "defaultObjective": "NEGOTIATE",
+      "objectivePlaybook": {
+        "COLLECT_NOW": {
+          "goal": "Cerrar pago hoy si es viable; si no, pasar a acuerdo.",
+          "primaryAction": "SEND_PAYMENT_LINK",
+          "secondaryAction": "SHOW_OFFERS"
+        },
+        "NEGOTIATE": {
+          "goal": "Cerrar un acuerdo y avanzar a pago/promesa.",
+          "primaryAction": "SHOW_OFFERS",
+          "secondaryAction": "ASK_SLOT"
+        },
+        "PROMISE": {
+          "goal": "Capturar fecha+monto y registrar promesa.",
+          "primaryAction": "ASK_SLOT",
+          "secondaryAction": "CREATE_PROMISE"
+        },
+        "NUDGE": {
+          "goal": "Confirmar intención sin presionar.",
+          "primaryAction": "CLARIFY",
+          "secondaryAction": "SHOW_DETAIL"
+        },
+        "VERIFY": {
+          "goal": "Verificar pago/disputa antes de insistir.",
+          "primaryAction": "ACK_ALREADY_PAID",
+          "secondaryAction": "ACK_DISPUTE"
+        }
+      },
+      "rules": [
+        { "when": { "maxDaysPastDue": 7 }, "objective": "NUDGE", "toneKey": "T1" },
+        { "when": { "minDaysPastDue": 60 }, "objective": "COLLECT_NOW", "toneKey": "T3" },
+        { "when": { "minTotalDueCop": 2000000 }, "objective": "COLLECT_NOW", "toneKey": "T3" }
+      ]
     }
   }
 }

@@ -23,6 +23,19 @@ export type NormalizedInboundEvent = {
 
 export type TenantStage = 'EARLY' | 'MID' | 'LATE';
 
+export type StrategyObjective = 'COLLECT_NOW' | 'NEGOTIATE' | 'PROMISE' | 'NUDGE' | 'VERIFY';
+
+export type StrategyPreferredAction =
+  | 'SEND_PAYMENT_LINK'
+  | 'SHOW_OFFERS'
+  | 'ASK_SLOT'
+  | 'CREATE_PROMISE'
+  | 'SHOW_DETAIL'
+  | 'CLARIFY'
+  | 'DEESCALATE'
+  | 'ACK_DISPUTE'
+  | 'ACK_ALREADY_PAID';
+
 export type TenantPolicy = {
   contactPolicy: {
     timezone: string; // e.g. America/Bogota
@@ -100,6 +113,43 @@ export type TenantPolicy = {
     T1: string;
     T2: string;
     T3: string;
+  };
+
+  /** Optional: per-tenant conversational goals and tone strategy. */
+  strategyPolicy?: {
+    /** Default objective if no rule matches. */
+    defaultObjective?: StrategyObjective;
+
+    /** Optional: per-objective playbooks used by the Dialogue Manager to guide towards closure. */
+    objectivePlaybook?: Partial<
+      Record<
+        StrategyObjective,
+        {
+          /** Human-readable goal for the DM (do not expose internal policy). */
+          goal: string;
+          /** Preferred first action when the user is ready. */
+          primaryAction?: StrategyPreferredAction;
+          /** Preferred fallback if primary is not accepted. */
+          secondaryAction?: StrategyPreferredAction;
+        }
+      >
+    >;
+
+    /** Ordered rules; first match wins. */
+    rules?: Array<{
+      when: {
+        minDaysPastDue?: number;
+        maxDaysPastDue?: number;
+        minTotalDueCop?: number;
+        maxTotalDueCop?: number;
+        stages?: TenantStage[];
+      };
+      objective: StrategyObjective;
+      /** Optional: override tone using existing tonePolicy buckets. */
+      toneKey?: 'T1' | 'T2' | 'T3';
+      /** Optional: explicit tone string override. */
+      tone?: string;
+    }>;
   };
 };
 
@@ -203,6 +253,10 @@ export type DebtorSnapshot = {
 export type NluResult = {
   intent:
     | 'GREETING'
+    | 'AFFIRM'
+    | 'DENY'
+    | 'SELECT_OFFER'
+    | 'REFUSE_PAY'
     | 'PAY_NOW'
     | 'NEGOTIATE'
     | 'PROMISE_PAYMENT'
@@ -218,6 +272,7 @@ export type NluResult = {
     amountCop?: number;
     dateIso?: string; // YYYY-MM-DD
     paymentMethod?: 'PSE' | 'CARD' | 'TRANSFER' | 'CASH';
+    offerIndex?: number;
   };
   confidence: number;
   topicShift: boolean;
@@ -229,6 +284,16 @@ export type NbaDecision =
       nextState: string;
       slotsUpdate: Record<string, unknown>;
       nextContactAllowedAt?: string;
+    }
+  | { action: 'ACK_ALREADY_PAID'; nextState: string; slotsUpdate: Record<string, unknown> }
+  | { action: 'ACK_DISPUTE'; nextState: string; slotsUpdate: Record<string, unknown> }
+  | { action: 'DEESCALATE'; nextState: string; slotsUpdate: Record<string, unknown> }
+  | { action: 'PERSUADE'; nextState: string; slotsUpdate: Record<string, unknown> }
+  | {
+      action: 'END_REFUSAL';
+      nextState: string;
+      slotsUpdate: Record<string, unknown>;
+      nextContactAllowedAt: string;
     }
   | { action: 'GREET'; nextState: string; slotsUpdate: Record<string, unknown> }
   | { action: 'CLARIFY'; nextState: string; slotsUpdate: Record<string, unknown> }

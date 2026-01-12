@@ -74,6 +74,55 @@ export const DEFAULT_TENANT_POLICY: TenantPolicy = {
     T2: 'Firme pero respetuoso, orientado a solución.',
     T3: 'Muy firme, centrado en opciones y consecuencias legales permitidas, sin amenazas.',
   },
+
+  strategyPolicy: {
+    // Conservative default: early cases get a softer nudge; otherwise aim to resolve via agreement.
+    defaultObjective: 'NEGOTIATE',
+    objectivePlaybook: {
+      NUDGE: {
+        goal: 'Orientar al usuario y lograr que elija una acción (detalle, acuerdo, pago hoy o promesa) sin presionar.',
+        primaryAction: 'CLARIFY',
+        secondaryAction: 'SHOW_DETAIL',
+      },
+      NEGOTIATE: {
+        goal: 'Cerrar un acuerdo viable hoy (oferta/alternativa) y avanzar a pago o promesa.',
+        primaryAction: 'SHOW_OFFERS',
+        secondaryAction: 'ASK_SLOT',
+      },
+      COLLECT_NOW: {
+        goal: 'Priorizar pago hoy si el usuario está dispuesto; si no, pasar a acuerdo rápidamente.',
+        primaryAction: 'SEND_PAYMENT_LINK',
+        secondaryAction: 'SHOW_OFFERS',
+      },
+      PROMISE: {
+        goal: 'Capturar fecha y monto de promesa y registrarla.',
+        primaryAction: 'ASK_SLOT',
+        secondaryAction: 'CREATE_PROMISE',
+      },
+      VERIFY: {
+        goal: 'Verificar pago o disputa antes de insistir con cobro.',
+        primaryAction: 'ACK_ALREADY_PAID',
+        secondaryAction: 'ACK_DISPUTE',
+      },
+    },
+    rules: [
+      {
+        when: { maxDaysPastDue: 7 },
+        objective: 'NUDGE',
+        toneKey: 'T1',
+      },
+      {
+        when: { minDaysPastDue: 60 },
+        objective: 'COLLECT_NOW',
+        toneKey: 'T3',
+      },
+      {
+        when: { minTotalDueCop: 2000000 },
+        objective: 'COLLECT_NOW',
+        toneKey: 'T3',
+      },
+    ],
+  },
 };
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {

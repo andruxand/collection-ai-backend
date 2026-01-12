@@ -24,6 +24,21 @@ To keep stable IDs across messages:
 - Fields:
   - `state`, `slots`, `attemptCount`, `lastIntent`, timestamps
 
+Typical `state` values (MVP):
+- `WELCOME`: default entry state
+- `DETAIL`: after showing balance / due info
+- `OFFER_MENU`: after showing deterministic offers
+- `NEGOTIATION`: collecting promise slots (amount/date)
+- `PAYMENT`: after sending a payment link
+- `HANDOFF`: when a human case was created (DISPUTE/ANGRY path)
+
+Common `slots` keys (examples):
+- `promiseDate` (YYYY-MM-DD)
+- `promiseAmount` (COP)
+- `selectedOfferId`
+- `handedOff` (boolean)
+- `handoffCaseId`
+
 ### Contact State (cross-channel)
 - `sk = CONTACT#<debtorId>`
 - Fields:
@@ -40,7 +55,7 @@ To keep stable IDs across messages:
 
 ### Audit
 - `sk = AUDIT#<ISO>#<direction>#<messageId>`
-- Stores policy, nlu, nba, text (optionally redacted)
+- Stores policy, nlu, nba, dm (optional Dialogue Manager decision payload), text (optionally redacted)
 
 See audit details: `docs/08-audit-logging.md`.
 

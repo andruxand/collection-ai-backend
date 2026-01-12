@@ -104,6 +104,7 @@ export const handler = async () => {
         debtor,
         conversation: conv,
         nlu,
+        offers,
       });
 
       // Only send if it's a proactive action (prevents spamming fallback loops)

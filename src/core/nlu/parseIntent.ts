@@ -1,17 +1,92 @@
 import { llmJson } from '../llm/llmClient';
 import { NLU_PROMPT } from '../llm/prompts';
-import type { NluResult } from '../types';
+import type { ConversationState, NluResult } from '../types';
 import { NLU_JSON_SCHEMA, NluSchema } from './schema';
 
-function deterministicMenuIntent(text: string): NluResult | undefined {
+function normalizeCopAmount(raw: string): number | undefined {
+  const cleaned = raw.replace(/[^0-9]/g, '');
+  if (!cleaned) return undefined;
+  const n = Number(cleaned);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return n;
+}
+
+function extractDateIso(text: string): string | undefined {
+  const t = text.trim();
+
+  const iso = t.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  if (iso?.[1]) return iso[1];
+
+  const dmy = t.match(/\b(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})\b/);
+  if (dmy) {
+    const dd = String(dmy[1]).padStart(2, '0');
+    const mm = String(dmy[2]).padStart(2, '0');
+    const yyyy = dmy[3];
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  return undefined;
+}
+
+function extractEntities(text: string): NluResult['entities'] {
+  const t = text.toLowerCase();
+
+  const amountMatch = t.match(/\$?\s*(\d{1,3}(?:[\.\s]\d{3})+|\d{4,})\s*(?:cop)?\b/);
+  const amountCop = amountMatch?.[1] ? normalizeCopAmount(amountMatch[1]) : undefined;
+
+  const dateIso = extractDateIso(text);
+
+  const paymentMethod = (() => {
+    if (/\bpse\b/.test(t)) return 'PSE' as const;
+    if (/(tarjeta|cr[eé]dito|debito|d[eé]bito)/.test(t)) return 'CARD' as const;
+    if (/(transfer|banco|nequi|daviplata)/.test(t)) return 'TRANSFER' as const;
+    if (/(efectivo|cash)/.test(t)) return 'CASH' as const;
+    return undefined;
+  })();
+
+  return { amountCop, dateIso, paymentMethod };
+}
+
+function deterministicMenuIntent(input: {
+  text: string;
+  conversation?: ConversationState;
+}): NluResult | undefined {
+  const { text, conversation } = input;
   const t = text.trim().toLowerCase();
+
+  // Refusal to pay (strong signal, should not be treated as generic DENY)
+  if (
+    /(no\s+(?:quiero|voy\s+a|pienso)\s+pagar|me\s+niego\s+a\s+pagar|no\s+voy\s+a\s+pagar)/.test(t)
+  ) {
+    return { intent: 'REFUSE_PAY', entities: {}, confidence: 0.85, topicShift: false };
+  }
+
+  // Offer menu shortcuts (when the user is choosing an offer)
+  if ((conversation?.state ?? '') === 'OFFER_MENU') {
+    const m = t.match(/^\s*(\d{1,2})\s*$/);
+    const offerIndex = m?.[1] ? Number(m[1]) : undefined;
+    if (offerIndex && Number.isFinite(offerIndex) && offerIndex > 0) {
+      return {
+        intent: 'SELECT_OFFER',
+        entities: { offerIndex },
+        confidence: 0.95,
+        topicShift: false,
+      };
+    }
+  }
+
+  // Short confirmations
+  if (/^(s[ií]|ok|listo|dale|de acuerdo|confirmo)$/.test(t)) {
+    return { intent: 'AFFIRM', entities: {}, confidence: 0.85, topicShift: false };
+  }
+  if (/^(no|nop|negativo)$/.test(t)) {
+    return { intent: 'DENY', entities: {}, confidence: 0.85, topicShift: false };
+  }
 
   // Greeting / start commands (Telegram etc.)
   if (
     t === '/start' ||
-    /^(hola|buenas|buenos\s+d[ií]as|buen\s+d[ií]a|buenas\s+tardes|buenas\s+noches|hey|hi)\b/.test(
-      t
-    )
+    /^(hola|buenas|buenos\s+d[ií]as|buen\s+d[ií]a|buenas\s+tardes|buenas\s+noches|hey|hi)\b/.test(t)
   ) {
     return { intent: 'GREETING', entities: {}, confidence: 0.95, topicShift: false };
   }
@@ -36,7 +111,25 @@ function deterministicMenuIntent(text: string): NluResult | undefined {
       t
     )
   ) {
-    return { intent: 'PROMISE_PAYMENT', entities: {}, confidence: 0.65, topicShift: false };
+    return {
+      intent: 'PROMISE_PAYMENT',
+      entities: extractEntities(text),
+      confidence: 0.75,
+      topicShift: false,
+    };
+  }
+
+  // Date-only or amount-only in negotiation context: treat as promise info
+  if ((conversation?.state ?? '') === 'NEGOTIATION') {
+    const ent = extractEntities(text);
+    if (ent.dateIso || ent.amountCop) {
+      return { intent: 'PROMISE_PAYMENT', entities: ent, confidence: 0.7, topicShift: false };
+    }
+  }
+
+  // Offtopic helpers
+  if (/(qu(i|í)en\s+eres|qu(e|é)\s+eres|para\s+qu(e|é)\s+es|ayuda)/.test(t)) {
+    return { intent: 'OFFTOPIC', entities: {}, confidence: 0.65, topicShift: true };
   }
 
   return undefined;
@@ -59,16 +152,26 @@ function regexFallback(text: string): NluResult {
     return { intent: 'PAY_NOW', entities: {}, confidence: 0.55, topicShift: false };
   if (/(acuerdo|cuotas|negoci|descuento)/.test(t))
     return { intent: 'NEGOTIATE', entities: {}, confidence: 0.55, topicShift: false };
+  if (
+    /(no\s+(?:quiero|voy\s+a|pienso)\s+pagar|me\s+niego\s+a\s+pagar|no\s+voy\s+a\s+pagar)/.test(t)
+  )
+    return { intent: 'REFUSE_PAY', entities: {}, confidence: 0.7, topicShift: false };
   if (/(no debo|equivoc|fraude|estafa|no es mi)/.test(t))
     return { intent: 'DISPUTE', entities: {}, confidence: 0.6, topicShift: false };
   return { intent: 'UNKNOWN', entities: {}, confidence: 0.2, topicShift: false };
 }
 
-export async function parseIntent(input: { text: string }): Promise<NluResult> {
-  const deterministic = deterministicMenuIntent(input.text);
+export async function parseIntent(input: {
+  text: string;
+  conversation?: ConversationState;
+}): Promise<NluResult> {
+  const deterministic = deterministicMenuIntent(input);
   if (deterministic) return deterministic;
 
-  const prompt = NLU_PROMPT.replace('{{text}}', input.text);
+  const prompt = NLU_PROMPT.replace('{{text}}', input.text).replace(
+    '{{state}}',
+    input.conversation?.state ?? 'UNKNOWN'
+  );
   try {
     const raw = await llmJson(prompt, NLU_JSON_SCHEMA, 'nlu');
     const parsed = NluSchema.safeParse(raw);

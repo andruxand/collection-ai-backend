@@ -1,3 +1,4 @@
+import type { Offer } from '../offers/offerEngine';
 import type {
   ConversationState,
   DebtorSnapshot,
@@ -11,9 +12,97 @@ export function nextBestAction(input: {
   debtor: DebtorSnapshot;
   conversation: ConversationState;
   nlu: NluResult;
+  offers: Offer[];
 }): NbaDecision {
-  const { conversation, nlu, tenantPolicy } = input;
+  const { conversation, nlu, tenantPolicy, offers } = input;
   const slots = conversation.slots ?? {};
+  const state = conversation.state ?? 'WELCOME';
+  const lastIntent = conversation.lastIntent;
+
+  // Short confirmations / denials should be interpreted in context.
+  // This reduces the chance of falling back to menus when the user answers "sí/no".
+  if (nlu.intent === 'AFFIRM') {
+    if (state === 'PAYMENT' || lastIntent === 'PAY_NOW') {
+      return { action: 'SEND_PAYMENT_LINK', nextState: 'PAYMENT', slotsUpdate: {} };
+    }
+
+    if (state === 'OFFER_MENU' || lastIntent === 'NEGOTIATE' || lastIntent === 'SELECT_OFFER') {
+      // "Sí" without selecting an option: ask for the offer number.
+      return { action: 'CLARIFY', nextState: 'OFFER_MENU', slotsUpdate: {} };
+    }
+
+    if (state === 'NEGOTIATION' || lastIntent === 'PROMISE_PAYMENT') {
+      const hasDate = typeof (slots.promiseDate as unknown) === 'string';
+      const hasAmount = typeof (slots.promiseAmount as unknown) === 'number';
+      if (!hasDate)
+        return { action: 'ASK_SLOT', slot: 'promiseDate', nextState: 'NEGOTIATION', slotsUpdate: {} };
+      if (!hasAmount)
+        return {
+          action: 'ASK_SLOT',
+          slot: 'promiseAmount',
+          nextState: 'NEGOTIATION',
+          slotsUpdate: {},
+        };
+    }
+
+    // Default: ask the user to choose a concrete path.
+    return { action: 'CLARIFY', nextState: state, slotsUpdate: {} };
+  }
+
+  if (nlu.intent === 'DENY') {
+    if (state === 'PAYMENT' || lastIntent === 'PAY_NOW') {
+      // User doesn't want to pay now -> show offers.
+      return { action: 'SHOW_OFFERS', nextState: 'OFFER_MENU', slotsUpdate: {} };
+    }
+
+    if (state === 'OFFER_MENU') {
+      // "No" to the shown options: keep negotiation open.
+      return { action: 'CLARIFY', nextState: 'OFFER_MENU', slotsUpdate: {} };
+    }
+
+    if (state === 'DETAIL' || lastIntent === 'ASK_DETAIL') {
+      return { action: 'SHOW_OFFERS', nextState: 'OFFER_MENU', slotsUpdate: {} };
+    }
+
+    return { action: 'CLARIFY', nextState: state, slotsUpdate: {} };
+  }
+
+  if (nlu.intent === 'REFUSE_PAY') {
+    const refusalCount = (typeof slots.refusalCount === 'number' ? slots.refusalCount : 0) + 1;
+
+    // First refusal: respond like a skilled collector (empathy + options), keep it in the negotiated path.
+    if (refusalCount <= 1) {
+      return {
+        action: 'PERSUADE',
+        nextState: 'OFFER_MENU',
+        slotsUpdate: { refusalCount },
+      };
+    }
+
+    // Repeated refusal: record and stop the automated conversation for now.
+    const next = new Date(
+      Date.now() + tenantPolicy.cooldowns.rejectedOfferDays * 24 * 60 * 60 * 1000
+    ).toISOString();
+
+    return {
+      action: 'END_REFUSAL',
+      nextState: 'DONE',
+      slotsUpdate: { refusalCount, refusedPay: true },
+      nextContactAllowedAt: next,
+    };
+  }
+
+  if (nlu.intent === 'ALREADY_PAID') {
+    return { action: 'ACK_ALREADY_PAID', nextState: 'WELCOME', slotsUpdate: {} };
+  }
+
+  if (nlu.intent === 'DISPUTE') {
+    return { action: 'ACK_DISPUTE', nextState: 'WELCOME', slotsUpdate: {} };
+  }
+
+  if (nlu.intent === 'ANGRY') {
+    return { action: 'DEESCALATE', nextState: 'WELCOME', slotsUpdate: {} };
+  }
 
   if (nlu.intent === 'GREETING') {
     return { action: 'GREET', nextState: conversation.state ?? 'WELCOME', slotsUpdate: {} };
@@ -24,11 +113,16 @@ export function nextBestAction(input: {
   }
 
   if (nlu.intent === 'OFFTOPIC') {
-    // First try a natural clarification instead of a numeric menu.
-    if ((conversation.state ?? 'WELCOME') === 'WELCOME') {
-      return { action: 'CLARIFY', nextState: 'WELCOME', slotsUpdate: {} };
+    // Prefer a natural clarification in the common states to avoid menu loops.
+    if (
+      state === 'WELCOME' ||
+      state === 'OFFER_MENU' ||
+      state === 'DETAIL' ||
+      state === 'PAYMENT'
+    ) {
+      return { action: 'CLARIFY', nextState: state, slotsUpdate: {} };
     }
-    return { action: 'REDIRECT_MENU', nextState: conversation.state ?? 'WELCOME', slotsUpdate: {} };
+    return { action: 'REDIRECT_MENU', nextState: state, slotsUpdate: {} };
   }
 
   if (nlu.intent === 'SYSTEM_TICK') {
@@ -60,6 +154,34 @@ export function nextBestAction(input: {
     };
   }
 
+  if (nlu.intent === 'SELECT_OFFER') {
+    const idx = nlu.entities.offerIndex;
+    const offer = typeof idx === 'number' ? offers[idx - 1] : undefined;
+    if (!offer) {
+      return { action: 'CLARIFY', nextState: 'OFFER_MENU', slotsUpdate: {} };
+    }
+
+    if (offer.type === 'ONE_PAY') {
+      return {
+        action: 'SEND_PAYMENT_LINK',
+        nextState: 'PAYMENT',
+        slotsUpdate: { selectedOfferId: offer.id },
+      };
+    }
+
+    // Installments: capture a first-payment promise as a deterministic MVP.
+    const firstPaymentAmount = offer.amountPerInstallmentCop ?? undefined;
+    return {
+      action: 'ASK_SLOT',
+      slot: 'promiseDate',
+      nextState: 'NEGOTIATION',
+      slotsUpdate: {
+        selectedOfferId: offer.id,
+        ...(firstPaymentAmount ? { promiseAmount: firstPaymentAmount } : {}),
+      },
+    };
+  }
+
   if (nlu.intent === 'NEGOTIATE') {
     return { action: 'SHOW_OFFERS', nextState: 'OFFER_MENU', slotsUpdate: {} };
   }
@@ -86,9 +208,14 @@ export function nextBestAction(input: {
   }
 
   // Unknown: avoid jumping to menus immediately on first contact.
-  if ((conversation.state ?? 'WELCOME') === 'WELCOME' && (conversation.attemptCount ?? 0) <= 1) {
-    return { action: 'CLARIFY', nextState: 'WELCOME', slotsUpdate: {} };
+  if (
+    (state === 'WELCOME' && (conversation.attemptCount ?? 0) <= 1) ||
+    state === 'OFFER_MENU' ||
+    state === 'DETAIL' ||
+    state === 'PAYMENT'
+  ) {
+    return { action: 'CLARIFY', nextState: state, slotsUpdate: {} };
   }
 
-  return { action: 'FALLBACK_MENU', nextState: conversation.state ?? 'WELCOME', slotsUpdate: {} };
+  return { action: 'FALLBACK_MENU', nextState: state, slotsUpdate: {} };
 }

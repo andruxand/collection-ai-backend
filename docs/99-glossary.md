@@ -13,10 +13,20 @@
 - **Entities:** datos extraídos del mensaje (monto, fecha, método).
 - **NBA (Next Best Action):** decisión determinística de qué hacer ahora (pedir datos, mostrar detalle, ofrecer acuerdo, registrar promesa).
 - **Offer Engine:** motor determinístico que calcula ofertas (cuotas, descuentos) según políticas del tenant.
+- **Dialogue Manager (DM):** componente opcional LLM-first que puede decidir `nlu` + `nba` en una sola salida JSON estricta, con fallback seguro al pipeline determinístico.
+- **strategyPolicy:** configuración por tenant para definir objetivo conversacional y tono (por reglas en función de `daysPastDue`, `totalDueCop`, `stage`).
+- **Strategy Objective:** objetivo conversacional elegido por `strategyPolicy` (ej. `NUDGE`, `NEGOTIATE`, `COLLECT_NOW`, `PROMISE`, `VERIFY`).
+- **objectivePlaybook:** sección de `strategyPolicy` para describir el cierre deseado por objetivo (goal) y acciones preferidas (primary/secondary).
 - **Handoff:** transferencia a un humano cuando el caso requiere revisión (disputa, enojo, alto riesgo).
 - **Audit Log:** rastro completo (mensajes + decisiones) para cumplimiento, QA y disputas.
 - **Reminder:** evento programado (p.ej. promesa de pago) que dispara un mensaje futuro si la policy lo permite.
 - **Idempotency:** garantía de que el mismo evento entrante no se procesa dos veces (evita duplicados).
+
+- **AFFIRM / DENY:** intents de confirmación breve ("sí"/"ok" vs. "no") para evitar caer a menús.
+- **SELECT_OFFER:** intent usado cuando el usuario elige una opción de oferta en `OFFER_MENU`.
+- **offerIndex:** entity numérica (1-based) indicando la opción seleccionada.
+
+- **DIALOGUE_MANAGER_ENABLED:** feature flag para activar el Dialogue Manager. Si está apagado o el DM falla validación, el flujo cae a `parseIntent` + `nextBestAction`.
 
 - **RBAC:** control de acceso por roles (ej. Admin, Agent).
 - **ABAC:** control de acceso por atributos (ej. tenantIds en el JWT).

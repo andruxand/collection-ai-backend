@@ -1,4 +1,5 @@
 import { Offer } from '../offers/offerEngine';
+import { computeConversationStrategy } from '../strategy/strategy';
 import { ConversationState, DebtorSnapshot, NbaDecision, NluResult, Tenant } from '../types';
 import { llmText } from './llmClient';
 import { WRITER_PROMPT } from './prompts';
@@ -42,6 +43,93 @@ Opciones:
   return header + body;
 }
 
+function menuText(): string {
+  return `Puedo ayudarte con tu obligación pendiente. Elige una opción:
+1) Ver detalle
+2) Hacer acuerdo
+3) Pagar hoy
+4) Prometer una fecha de pago`;
+}
+
+function clarifyByState(input: {
+  tenant: Tenant;
+  debtor: DebtorSnapshot;
+  conversation: ConversationState;
+}): string {
+  const state = input.conversation.state ?? 'WELCOME';
+  const amount = formatMoneyCop(input.debtor.totalDueCop);
+
+  if (state === 'OFFER_MENU') {
+    return `Para que cerremos un acuerdo, dime cuál opción te sirve (responde 1 o 2).
+
+Si ninguna te encaja, dime: ¿cuánto podrías pagar hoy o en cuántas cuotas te quedaría mejor?`;
+  }
+
+  if (state === 'PAYMENT') {
+    return `¿Quieres que te reenvíe el enlace para pagar hoy, o prefieres que armemos un acuerdo (cuotas/descuento) o una promesa de pago con fecha?`;
+  }
+
+  if (state === 'DETAIL') {
+    return `Tu saldo pendiente es $${amount} COP. ¿Qué prefieres hacer: pagar hoy, hacer un acuerdo o prometer una fecha de pago?`;
+  }
+
+  // Default / welcome
+  return 'Para ayudarte mejor, ¿qué deseas hacer: ver detalle, hacer acuerdo, pagar hoy o prometer una fecha de pago?';
+}
+
+function offersInline(offers: Offer[]): string {
+  if (!offers.length) return '';
+  const lines = offers.map((o, i) => {
+    if (o.type === 'ONE_PAY') return `${i + 1}) ${o.label}: $${formatMoneyCop(o.amountTotalCop)}`;
+    return `${i + 1}) ${o.label}: ${o.installments} x $${formatMoneyCop(
+      o.amountPerInstallmentCop ?? 0
+    )}`;
+  });
+  return lines.join('\n');
+}
+
+async function maybeRewriteWithLlm(params: {
+  tenant: Tenant;
+  debtor: DebtorSnapshot;
+  conversation: ConversationState;
+  nlu: NluResult;
+  nba: NbaDecision;
+  offers: Offer[];
+  tone: string;
+  draft: string;
+}): Promise<string> {
+  const enabled = process.env.LLM_REWRITE_ENABLED !== 'false';
+  if (!enabled) return params.draft;
+
+  // Only rewrite short, non-menu, non-link messages to preserve determinism.
+  const nonRewritable = /https?:\/\//.test(params.draft) || /\n1\)/.test(params.draft);
+  if (nonRewritable) return params.draft;
+
+  const context = {
+    tenantName: params.tenant.name,
+    state: params.conversation.state,
+    totalDueCop: params.debtor.totalDueCop,
+    daysPastDue: params.debtor.daysPastDue,
+    intent: params.nlu.intent,
+    action: params.nba.action,
+    offers: params.offers,
+  };
+
+  const prompt = WRITER_PROMPT.replace('{{tone}}', params.tone)
+    .replace('{{contextJson}}', JSON.stringify(context))
+    .replace('{{draft}}', params.draft);
+
+  try {
+    const out = (await llmText(prompt)).trim();
+    if (!out) return params.draft;
+    // Safety: prevent pathological long outputs.
+    if (out.length > Math.max(800, params.draft.length * 4)) return params.draft;
+    return out;
+  } catch {
+    return params.draft;
+  }
+}
+
 export async function writeResponse(input: {
   tenant: Tenant;
   debtor: DebtorSnapshot;
@@ -60,35 +148,70 @@ export async function writeResponse(input: {
     });
   }
 
-  const tone = (() => {
-    // Deterministic tone mapping (MVP)
-    if (input.debtor.daysPastDue <= 15) return input.tenant.policy.tonePolicy.T1;
-    if (input.debtor.daysPastDue <= 60) return input.tenant.policy.tonePolicy.T2;
-    return input.tenant.policy.tonePolicy.T3;
-  })();
+  const strategy = computeConversationStrategy({
+    tenantPolicy: input.tenant.policy,
+    debtor: input.debtor,
+  });
+  const tone = strategy.tone;
 
   // Deterministic templates for critical actions (better than fully generative in MVP)
+  let draft: string | undefined;
   switch (nba.action) {
     case 'GREET': {
       const org = input.tenant.name ?? 'tu entidad';
-      return `Hola. Te escribe ${org}. ¿En qué te puedo ayudar hoy con tu obligación?
+      draft = `Hola. Te escribe ${org}. ¿En qué te puedo ayudar hoy con tu obligación?
 
 Puedes decir, por ejemplo: "ver detalle", "hacer acuerdo", "pagar hoy" o "prometer fecha".`;
+      break;
     }
     case 'CLARIFY':
-      return 'Para ayudarte mejor, ¿qué deseas hacer: ver detalle, hacer acuerdo, pagar hoy o prometer una fecha de pago?';
+      draft = clarifyByState({
+        tenant: input.tenant,
+        debtor: input.debtor,
+        conversation: input.conversation,
+      });
+      break;
     case 'OPT_OUT':
-      return 'Entendido. No te volveremos a contactar por este canal. Si deseas retomar, escribe ACUERDO o PAGO.';
+      draft =
+        'Entendido. No te volveremos a contactar por este canal. Si deseas retomar, escribe ACUERDO o PAGO.';
+      break;
+    case 'ACK_ALREADY_PAID':
+      draft =
+        'Gracias por avisar. Para verificar el pago, ¿me confirmas por favor la fecha y el valor, y si fue por PSE, tarjeta o transferencia? Si tienes número de comprobante, también compártelo.';
+      break;
+    case 'ACK_DISPUTE':
+      draft =
+        'Entiendo. Si no reconoces la obligación o crees que hay un error, puedo ayudarte a revisar. ¿Me confirmas si eres el titular? Si prefieres, puedo escalar tu caso a un asesor para validación.';
+      break;
+    case 'DEESCALATE':
+      draft =
+        'Entiendo tu molestia. Mi intención es ayudarte a resolverlo de la forma más clara posible. ¿Quieres ver el detalle, pagar hoy, o buscar un acuerdo que te quede bien?';
+      break;
+    case 'PERSUADE': {
+      const amount = formatMoneyCop(input.debtor.totalDueCop);
+      const opts = offersInline(input.offers);
+      draft = `Entiendo que ahora no quieras pagar. Solo para que lo tengas claro: mientras la obligación siga en mora, normalmente se generan intereses y costos, y el saldo puede incrementarse.
+
+Si lo que buscas es una salida manejable, podemos cerrarlo con una opción que te quede cómoda. Tu saldo pendiente es $${amount} COP.
+
+Opciones sugeridas:
+${opts}
+
+Responde con 1 o 2. Si ninguna te sirve, dime: ¿cuánto podrías pagar hoy y para qué fecha podrías completar el resto?`;
+      break;
+    }
+    case 'END_REFUSAL':
+      draft = `Entendido. Dejo constancia de que por ahora no deseas realizar el pago ni un acuerdo. No insistiremos en este momento.
+
+    Si cambias de decisión, escribe ACUERDO, PAGO o una FECHA (YYYY-MM-DD) y lo retomamos.`;
+      break;
     case 'REDIRECT_MENU':
     case 'FALLBACK_MENU':
-      return `Puedo ayudarte con tu obligación pendiente. Elige una opción:
-1) Ver detalle
-2) Hacer acuerdo
-3) Pagar hoy
-4) Prometer una fecha de pago`;
+      draft = menuText();
+      break;
 
     case 'SHOW_DETAIL':
-      return `Detalle de tu obligación:
+      draft = `Detalle de tu obligación:
 - Saldo pendiente: $${formatMoneyCop(input.debtor.totalDueCop)}
 - Días en mora: ${input.debtor.daysPastDue}
 - Fecha de vencimiento: ${input.debtor.dueDate ?? 'N/D'}
@@ -98,12 +221,14 @@ Elige una opción:
 2) Hacer acuerdo
 3) Pagar hoy
 4) Prometer una fecha de pago`;
+      break;
     case 'ASK_SLOT':
       if ((nba as any).slot === 'promiseDate')
-        return 'Perfecto. ¿Para qué fecha podrías realizar el pago? (Ej: 2026-01-15)';
+        draft = 'Perfecto. ¿Para qué fecha podrías realizar el pago? (Ej: 2026-01-15)';
       if ((nba as any).slot === 'promiseAmount')
-        return 'Gracias. ¿Qué valor podrías pagar? (Ej: 200000)';
-      return '¿Qué medio de pago prefieres? (PSE, tarjeta, transferencia)';
+        draft = 'Gracias. ¿Qué valor podrías pagar? (Ej: 200000)';
+      if (!draft) draft = '¿Qué medio de pago prefieres? (PSE, tarjeta, transferencia)';
+      break;
     case 'SHOW_OFFERS': {
       const lines = input.offers.map((o, i) => {
         if (o.type === 'ONE_PAY')
@@ -112,17 +237,19 @@ Elige una opción:
           o.amountPerInstallmentCop ?? 0
         )}`;
       });
-      return `Tu saldo pendiente es $${formatMoneyCop(input.debtor.totalDueCop)}.
+      draft = `Tu saldo pendiente es $${formatMoneyCop(input.debtor.totalDueCop)}.
 Opciones:
 ${lines.join('\n')}
-    Responde con el número de la opción.`;
+Responde con el número de la opción. Si necesitas otra alternativa, dime cuánto podrías pagar hoy o en cuántas cuotas.`;
+      break;
     }
     case 'SEND_PAYMENT_LINK':
       // In MVP this can be a placeholder; in production generate via Payment Link service.
-      return `Listo. Para pagar hoy, usa este enlace: https://example.com/pago?ref=${encodeURIComponent(
+      draft = `Listo. Para pagar hoy, usa este enlace: https://example.com/pago?ref=${encodeURIComponent(
         input.debtor.debtorId
       )}
 Si prefieres un acuerdo, responde ACUERDO.`;
+      break;
     case 'CREATE_PROMISE': {
       const a = (input.conversation?.slots?.promiseAmount ?? input.nlu.entities.amountCop) as
         | number
@@ -130,14 +257,29 @@ Si prefieres un acuerdo, responde ACUERDO.`;
       const d = (input.conversation?.slots?.promiseDate ?? input.nlu.entities.dateIso) as
         | string
         | undefined;
-      return `Perfecto. Registramos tu promesa de pago por $${formatMoneyCop(a ?? 0)} para el ${
+      draft = `Perfecto. Registramos tu promesa de pago por $${formatMoneyCop(a ?? 0)} para el ${
         d ?? ''
-      }. Responde SI para confirmar.`;
+      }.`;
+      break;
     }
     case 'COOLDOWN':
-      return 'Entendido. No insistiremos por ahora. Te escribiremos nuevamente más adelante.';
+      draft = 'Entendido. No insistiremos por ahora. Te escribiremos nuevamente más adelante.';
+      break;
     default:
       break;
+  }
+
+  if (draft) {
+    return maybeRewriteWithLlm({
+      tenant: input.tenant,
+      debtor: input.debtor,
+      conversation: input.conversation,
+      nlu: input.nlu,
+      nba: input.nba,
+      offers: input.offers,
+      tone,
+      draft,
+    });
   }
 
   // Optional generative (kept for future)
@@ -150,10 +292,9 @@ Si prefieres un acuerdo, responde ACUERDO.`;
     offers: input.offers,
   };
 
-  const prompt = WRITER_PROMPT.replace('{{tone}}', tone).replace(
-    '{{contextJson}}',
-    JSON.stringify(context)
-  );
+  const prompt = WRITER_PROMPT.replace('{{tone}}', tone)
+    .replace('{{contextJson}}', JSON.stringify(context))
+    .replace('{{draft}}', 'Responde al usuario de forma breve y accionable.');
 
   return llmText(prompt);
 }

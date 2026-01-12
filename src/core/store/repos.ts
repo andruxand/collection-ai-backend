@@ -862,6 +862,7 @@ export async function putAudit(params: {
   policy?: unknown;
   nlu?: NluResult;
   nba?: NbaDecision;
+  dm?: unknown;
   offers?: unknown;
   ttl?: number; // epoch seconds
 }) {
@@ -885,6 +886,7 @@ export async function putAudit(params: {
         policy: params.policy,
         nlu: params.nlu,
         nba: params.nba,
+        dm: params.dm,
         offers: params.offers,
         ttl: params.ttl,
       },
