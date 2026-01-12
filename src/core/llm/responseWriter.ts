@@ -69,6 +69,14 @@ export async function writeResponse(input: {
 
   // Deterministic templates for critical actions (better than fully generative in MVP)
   switch (nba.action) {
+    case 'GREET': {
+      const org = input.tenant.name ?? 'tu entidad';
+      return `Hola. Te escribe ${org}. ¿En qué te puedo ayudar hoy con tu obligación?
+
+Puedes decir, por ejemplo: "ver detalle", "hacer acuerdo", "pagar hoy" o "prometer fecha".`;
+    }
+    case 'CLARIFY':
+      return 'Para ayudarte mejor, ¿qué deseas hacer: ver detalle, hacer acuerdo, pagar hoy o prometer una fecha de pago?';
     case 'OPT_OUT':
       return 'Entendido. No te volveremos a contactar por este canal. Si deseas retomar, escribe ACUERDO o PAGO.';
     case 'REDIRECT_MENU':

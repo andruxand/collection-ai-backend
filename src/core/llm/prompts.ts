@@ -3,7 +3,7 @@ Clasifica el mensaje del usuario y extrae entidades.
 Mensaje: "{{text}}"
 
 Devuelve JSON con:
-- intent: PAY_NOW | NEGOTIATE | PROMISE_PAYMENT | ASK_DETAIL | DISPUTE | ALREADY_PAID | OPT_OUT | ANGRY | OFFTOPIC | UNKNOWN
+- intent: GREETING | PAY_NOW | NEGOTIATE | PROMISE_PAYMENT | ASK_DETAIL | DISPUTE | ALREADY_PAID | OPT_OUT | ANGRY | OFFTOPIC | UNKNOWN
 - entities: { amountCop?, dateIso?, paymentMethod? }
 - confidence: 0..1
 - topicShift: boolean

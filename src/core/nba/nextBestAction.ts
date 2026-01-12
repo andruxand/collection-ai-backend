@@ -15,11 +15,19 @@ export function nextBestAction(input: {
   const { conversation, nlu, tenantPolicy } = input;
   const slots = conversation.slots ?? {};
 
+  if (nlu.intent === 'GREETING') {
+    return { action: 'GREET', nextState: conversation.state ?? 'WELCOME', slotsUpdate: {} };
+  }
+
   if (nlu.intent === 'OPT_OUT') {
     return { action: 'OPT_OUT', nextState: 'DONE', slotsUpdate: { optedOut: true } };
   }
 
   if (nlu.intent === 'OFFTOPIC') {
+    // First try a natural clarification instead of a numeric menu.
+    if ((conversation.state ?? 'WELCOME') === 'WELCOME') {
+      return { action: 'CLARIFY', nextState: 'WELCOME', slotsUpdate: {} };
+    }
     return { action: 'REDIRECT_MENU', nextState: conversation.state ?? 'WELCOME', slotsUpdate: {} };
   }
 
@@ -75,6 +83,11 @@ export function nextBestAction(input: {
       slotsUpdate: {},
       nextContactAllowedAt: next,
     };
+  }
+
+  // Unknown: avoid jumping to menus immediately on first contact.
+  if ((conversation.state ?? 'WELCOME') === 'WELCOME' && (conversation.attemptCount ?? 0) <= 1) {
+    return { action: 'CLARIFY', nextState: 'WELCOME', slotsUpdate: {} };
   }
 
   return { action: 'FALLBACK_MENU', nextState: conversation.state ?? 'WELCOME', slotsUpdate: {} };

@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const NluSchema = z.object({
   intent: z.enum([
+    'GREETING',
     'PAY_NOW',
     'NEGOTIATE',
     'PROMISE_PAYMENT',
@@ -33,6 +34,7 @@ export const NLU_JSON_SCHEMA = {
     intent: {
       type: 'string',
       enum: [
+        'GREETING',
         'PAY_NOW',
         'NEGOTIATE',
         'PROMISE_PAYMENT',

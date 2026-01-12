@@ -202,6 +202,7 @@ export type DebtorSnapshot = {
 
 export type NluResult = {
   intent:
+    | 'GREETING'
     | 'PAY_NOW'
     | 'NEGOTIATE'
     | 'PROMISE_PAYMENT'
@@ -229,6 +230,8 @@ export type NbaDecision =
       slotsUpdate: Record<string, unknown>;
       nextContactAllowedAt?: string;
     }
+  | { action: 'GREET'; nextState: string; slotsUpdate: Record<string, unknown> }
+  | { action: 'CLARIFY'; nextState: string; slotsUpdate: Record<string, unknown> }
   | { action: 'REDIRECT_MENU'; nextState: string; slotsUpdate: Record<string, unknown> }
   | {
       action: 'ASK_SLOT';

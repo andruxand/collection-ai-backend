@@ -6,6 +6,16 @@ import { NLU_JSON_SCHEMA, NluSchema } from './schema';
 function deterministicMenuIntent(text: string): NluResult | undefined {
   const t = text.trim().toLowerCase();
 
+  // Greeting / start commands (Telegram etc.)
+  if (
+    t === '/start' ||
+    /^(hola|buenas|buenos\s+d[ií]as|buen\s+d[ií]a|buenas\s+tardes|buenas\s+noches|hey|hi)\b/.test(
+      t
+    )
+  ) {
+    return { intent: 'GREETING', entities: {}, confidence: 0.95, topicShift: false };
+  }
+
   // Main menu shortcuts (responseWriter: 1) Ver detalle, 2) Hacer acuerdo, 3) Pagar hoy, 4) Prometer fecha
   const m = t.match(/^(?:opci[oó]n\s*)?([1-4])(?:[\).:\-\s].*)?$/i);
   if (m?.[1] === '1')
@@ -34,6 +44,13 @@ function deterministicMenuIntent(text: string): NluResult | undefined {
 
 function regexFallback(text: string): NluResult {
   const t = text.toLowerCase();
+  if (
+    t.trim() === '/start' ||
+    /^(hola|buenas|buenos\s+d[ií]as|buen\s+d[ií]a|buenas\s+tardes|buenas\s+noches|hey|hi)\b/.test(
+      t.trim()
+    )
+  )
+    return { intent: 'GREETING', entities: {}, confidence: 0.6, topicShift: false };
   if (/(no.*(llam|escrib)|no me contact|paren|stop)/.test(t))
     return { intent: 'OPT_OUT', entities: {}, confidence: 0.7, topicShift: false };
   if (/(ya pag|pag(ue|ué)|transferí)/.test(t))

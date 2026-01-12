@@ -7,6 +7,16 @@ vi.mock('../llm/llmClient', () => ({
 import { parseIntent } from './parseIntent';
 
 describe('parseIntent (deterministic menu)', () => {
+  it('maps "hola" to GREETING', async () => {
+    const res = await parseIntent({ text: 'hola' });
+    expect(res.intent).toBe('GREETING');
+  });
+
+  it('maps "/start" to GREETING', async () => {
+    const res = await parseIntent({ text: '/start' });
+    expect(res.intent).toBe('GREETING');
+  });
+
   it('maps "1" to ASK_DETAIL', async () => {
     const res = await parseIntent({ text: '1' });
     expect(res.intent).toBe('ASK_DETAIL');
