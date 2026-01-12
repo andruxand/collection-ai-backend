@@ -60,6 +60,70 @@ node scripts/seedTenant.js configs/tenant-demo.json
 - List: `GET /admin/handoffs?tenantId=<id>`
 - Close: `POST /admin/handoffs/close`
 
+## LLM behavior (ops)
+The system is deterministic by default (policy + offer engine + NBA). An optional rewrite step can make replies more natural without changing meaning.
+
+Environment toggle:
+- `LLM_REWRITE_ENABLED=false` disables rewrite (useful for debugging and strict environments).
+
+## Conversational strategy (per tenant)
+You can configure a tenant-specific **objective** and **tone strategy** based on the debt context.
+
+This allows different goals depending on `daysPastDue` and/or `totalDueCop` (and optionally `stage`):
+- `NUDGE`: soft, informational, confirm intent
+- `NEGOTIATE`: focus on agreement (discount/installments)
+- `COLLECT_NOW`: prioritize payment today when viable
+- `PROMISE`: prioritize capturing promise date/amount
+- `VERIFY`: prioritize verification (already paid / dispute)
+
+Example:
+```json
+"strategyPolicy": {
+  "defaultObjective": "NEGOTIATE",
+  "objectivePlaybook": {
+    "COLLECT_NOW": {
+      "goal": "Cerrar pago hoy si el usuario está dispuesto; si no, pasar a acuerdo.",
+      "primaryAction": "SEND_PAYMENT_LINK",
+      "secondaryAction": "SHOW_OFFERS"
+    },
+    "NEGOTIATE": {
+      "goal": "Cerrar un acuerdo viable hoy y avanzar a pago/promesa.",
+      "primaryAction": "SHOW_OFFERS",
+      "secondaryAction": "ASK_SLOT"
+    },
+    "PROMISE": {
+      "goal": "Capturar fecha+monto y registrar promesa.",
+      "primaryAction": "ASK_SLOT",
+      "secondaryAction": "CREATE_PROMISE"
+    },
+    "NUDGE": {
+      "goal": "Confirmar intención sin presionar y llevar a una opción concreta.",
+      "primaryAction": "CLARIFY",
+      "secondaryAction": "SHOW_DETAIL"
+    },
+    "VERIFY": {
+      "goal": "Verificar pago/disputa antes de insistir.",
+      "primaryAction": "ACK_ALREADY_PAID",
+      "secondaryAction": "ACK_DISPUTE"
+    }
+  },
+  "rules": [
+    { "when": { "maxDaysPastDue": 7 }, "objective": "NUDGE", "toneKey": "T1" },
+    { "when": { "minDaysPastDue": 60 }, "objective": "COLLECT_NOW", "toneKey": "T3" },
+    { "when": { "minTotalDueCop": 2000000 }, "objective": "COLLECT_NOW", "toneKey": "T3" }
+  ]
+}
+```
+
+Notes:
+- Rules are evaluated in order (first match wins).
+- `toneKey` references `tonePolicy.T1/T2/T3`.
+
+Playbook enforcement (runtime):
+- When `DIALOGUE_MANAGER_ENABLED=true` and an `objectivePlaybook` exists for the matched objective, the runtime may enforce `primaryAction` (or `secondaryAction`) **only** to prevent menu-loop actions (`FALLBACK_MENU` / `REDIRECT_MENU`).
+- Enforcement is conservative and will not override sensitive intents like `DISPUTE`/`ANGRY`.
+- When an enforcement happens, the audit payload includes `dm.enforcement` to explain the override.
+
 
 ## Notifications
 Configure email notifications:

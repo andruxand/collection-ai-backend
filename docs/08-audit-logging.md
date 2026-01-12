@@ -15,6 +15,8 @@ For each inbound/outbound interaction:
 - policy result + reason
 - nlu result (intent/entities)
 - nba decision + offers shown
+- dm decision (optional): when `DIALOGUE_MANAGER_ENABLED=true`, the structured DM output can be stored for traceability
+- dm enforcement (optional): when a tenant playbook is configured, the runtime may override loop-y DM actions (e.g. fallback menus) and stores `dm.enforcement` to explain why
 - final message text (optional redaction)
 
 ## Where
