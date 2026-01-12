@@ -34,4 +34,34 @@ describe('nextBestAction', () => {
     const nba = nextBestAction({ tenantPolicy, debtor, conversation, nlu });
     expect(nba.action).toBe('PROACTIVE_OUTREACH');
   });
+
+  it('returns SHOW_DETAIL for ASK_DETAIL', () => {
+    const tenantPolicy: TenantPolicy = { ...DEFAULT_TENANT_POLICY };
+
+    const debtor: DebtorSnapshot = {
+      tenantId: 't',
+      debtorId: 'd',
+      totalDueCop: 100000,
+      daysPastDue: 10,
+      stage: 'EARLY',
+      consents: { whatsapp: true, telegram: false },
+    };
+
+    const conversation: ConversationState = {
+      state: 'WELCOME',
+      slots: {},
+      attemptCount: 0,
+      lastIntent: 'UNKNOWN',
+    };
+
+    const nlu: NluResult = {
+      intent: 'ASK_DETAIL',
+      entities: {},
+      confidence: 1,
+      topicShift: false,
+    };
+
+    const nba = nextBestAction({ tenantPolicy, debtor, conversation, nlu });
+    expect(nba.action).toBe('SHOW_DETAIL');
+  });
 });

@@ -56,6 +56,10 @@ export function nextBestAction(input: {
     return { action: 'SHOW_OFFERS', nextState: 'OFFER_MENU', slotsUpdate: {} };
   }
 
+  if (nlu.intent === 'ASK_DETAIL') {
+    return { action: 'SHOW_DETAIL', nextState: 'DETAIL', slotsUpdate: {} };
+  }
+
   if (nlu.intent === 'PAY_NOW') {
     return { action: 'SEND_PAYMENT_LINK', nextState: 'PAYMENT', slotsUpdate: {} };
   }

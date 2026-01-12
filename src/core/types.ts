@@ -236,6 +236,7 @@ export type NbaDecision =
       slotsUpdate: Record<string, unknown>;
       slot: 'promiseDate' | 'promiseAmount' | 'paymentMethod';
     }
+  | { action: 'SHOW_DETAIL'; nextState: string; slotsUpdate: Record<string, unknown> }
   | { action: 'SHOW_OFFERS'; nextState: string; slotsUpdate: Record<string, unknown> }
   | { action: 'SEND_PAYMENT_LINK'; nextState: string; slotsUpdate: Record<string, unknown> }
   | { action: 'PROACTIVE_OUTREACH'; nextState: string; slotsUpdate: Record<string, unknown> }

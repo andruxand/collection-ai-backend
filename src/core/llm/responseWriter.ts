@@ -28,15 +28,13 @@ function proactiveTemplate(input: {
 
 Opciones:
 ` +
-    `1) Pagar hoy
-` +
-    `2) Negociar un acuerdo (descuento / cuotas)
-` +
-    `3) Prometer una fecha de pago
-` +
-    `4) Ver detalle de la deuda
-` +
-    `5) Hablar con un asesor
+    `1) Ver detalle
+  ` +
+    `2) Hacer acuerdo (descuento / cuotas)
+  ` +
+    `3) Pagar hoy
+  ` +
+    `4) Prometer una fecha de pago
 
 ` +
     `Responde con el número de la opción.`;
@@ -78,7 +76,20 @@ export async function writeResponse(input: {
       return `Puedo ayudarte con tu obligación pendiente. Elige una opción:
 1) Ver detalle
 2) Hacer acuerdo
-3) Pagar hoy`;
+3) Pagar hoy
+4) Prometer una fecha de pago`;
+
+    case 'SHOW_DETAIL':
+      return `Detalle de tu obligación:
+- Saldo pendiente: $${formatMoneyCop(input.debtor.totalDueCop)}
+- Días en mora: ${input.debtor.daysPastDue}
+- Fecha de vencimiento: ${input.debtor.dueDate ?? 'N/D'}
+
+Elige una opción:
+1) Ver detalle
+2) Hacer acuerdo
+3) Pagar hoy
+4) Prometer una fecha de pago`;
     case 'ASK_SLOT':
       if ((nba as any).slot === 'promiseDate')
         return 'Perfecto. ¿Para qué fecha podrías realizar el pago? (Ej: 2026-01-15)';
@@ -96,7 +107,7 @@ export async function writeResponse(input: {
       return `Tu saldo pendiente es $${formatMoneyCop(input.debtor.totalDueCop)}.
 Opciones:
 ${lines.join('\n')}
-Responde 1, 2 o 3 para continuar.`;
+    Responde con el número de la opción.`;
     }
     case 'SEND_PAYMENT_LINK':
       // In MVP this can be a placeholder; in production generate via Payment Link service.
