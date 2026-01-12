@@ -4,6 +4,7 @@ import { DateTime } from 'luxon';
 
 import { sendTelegram } from '../core/channels/telegramSender';
 import { sendWhatsApp } from '../core/channels/whatsappSender';
+import { decideWithDialogueManager } from '../core/dialogue/dialogueManager';
 import { maybeHandoff } from '../core/handoff/handoff';
 import { writeResponse } from '../core/llm/responseWriter';
 import { safetyFilter } from '../core/llm/safetyFilter';
@@ -25,6 +26,8 @@ import {
   putReminder,
   resolveDebtor,
 } from '../core/store/repos';
+import { enforcePlaybookOnNba } from '../core/strategy/enforcePlaybook';
+import { computeConversationStrategy } from '../core/strategy/strategy';
 import type { NormalizedInboundEvent } from '../core/types';
 
 const logger = new Logger({ serviceName: 'collections-ai-mvp' });
@@ -104,6 +107,7 @@ export const handler = async (event: SQSEvent) => {
           telegramUserId: debtor.telegramUserId,
           text: tenant.policy.auditPolicy.storeMessageText ? text : undefined,
           policy: tenant.policy.auditPolicy.storeDecisionPayloads ? policy : undefined,
+          dm: undefined,
           ttl: auditTtlSeconds(tenant.policy.auditPolicy.retentionDays),
         });
 
@@ -116,10 +120,31 @@ export const handler = async (event: SQSEvent) => {
       }
 
       const userText = inbound.message.text ?? '';
-      const nlu = await parseIntent({ text: userText });
+
+      const offers = buildOffers({ tenantPolicy: effectivePolicy, debtor, conversation: conv });
+
+      const dmEnabled = process.env.DIALOGUE_MANAGER_ENABLED === 'true';
+      const dm = dmEnabled
+        ? await decideWithDialogueManager({
+            tenant,
+            debtor,
+            conversation: conv,
+            userText,
+            offers,
+          })
+        : undefined;
+
+      const strategy = computeConversationStrategy({
+        tenantPolicy: effectivePolicy,
+        debtor,
+      });
+
+      const nlu = dm?.nlu ?? (await parseIntent({ text: userText, conversation: conv }));
+
+      const dmAuditBase = dm?.decision;
 
       // Optional human handoff routing (ANGRY / DISPUTE for MID+ etc.)
-      await maybeHandoff({
+      const handoffRes = await maybeHandoff({
         tenant,
         debtor,
         nlu,
@@ -127,6 +152,56 @@ export const handler = async (event: SQSEvent) => {
         channel: inbound.channel,
         conversationKey: `${inbound.channel}#${debtor.debtorId}`,
       });
+
+      if (handoffRes.handedOff) {
+        const text = `Gracias por contarnos. Para ayudarte correctamente, voy a escalar tu caso con un asesor.
+Por favor comparte (si puedes): fecha del hecho/pago, valor involucrado y cualquier número de comprobante o referencia.`;
+
+        const safe = await safetyFilter({ text });
+
+        if (inbound.channel === 'telegram' && inbound.debtorRef.telegramChatId) {
+          await sendTelegram({ tenant, chatId: inbound.debtorRef.telegramChatId, text: safe });
+        } else if (inbound.channel === 'whatsapp' && debtor.phoneE164) {
+          await sendWhatsApp({ tenant, toE164: debtor.phoneE164, text: safe });
+        }
+
+        // counters per tenant timezone
+        const zone = tenant.policy.contactPolicy.timezone || 'America/Bogota';
+        const dt = DateTime.fromJSDate(new Date(), { zone: 'utc' }).setZone(zone);
+        const dayKey = dt.toISODate() as string;
+        const weekKey = `${dt.weekYear}-W${String(dt.weekNumber).padStart(2, '0')}`;
+        await bumpOutboundCounters({
+          tenantId: inbound.tenantId,
+          debtorId: debtor.debtorId,
+          dayKey,
+          weekKey,
+        });
+
+        await putAudit({
+          tenantId: inbound.tenantId,
+          debtorId: debtor.debtorId,
+          channel: inbound.channel,
+          direction: 'outbound',
+          messageId: inbound.message.id + ':handoff',
+          atIso: new Date().toISOString(),
+          phoneE164: debtor.phoneE164,
+          telegramUserId: debtor.telegramUserId,
+          text: tenant.policy.auditPolicy.storeMessageText ? safe : undefined,
+          nlu: tenant.policy.auditPolicy.storeDecisionPayloads ? nlu : undefined,
+          dm: tenant.policy.auditPolicy.storeDecisionPayloads ? dmAuditBase : undefined,
+          ttl: auditTtlSeconds(tenant.policy.auditPolicy.retentionDays),
+        });
+
+        const nextConv = {
+          ...conv,
+          state: 'HANDOFF',
+          slots: { ...(conv.slots ?? {}), handedOff: true, handoffCaseId: handoffRes.caseId },
+          lastIntent: nlu.intent,
+          lastContactAt: new Date().toISOString(),
+        };
+        await putConversation(inbound.tenantId, debtor.debtorId, inbound.channel, nextConv);
+        continue;
+      }
 
       // Handle opt-out immediately
       if (nlu.intent === 'OPT_OUT') {
@@ -145,6 +220,7 @@ export const handler = async (event: SQSEvent) => {
           telegramUserId: debtor.telegramUserId,
           text: tenant.policy.auditPolicy.storeMessageText ? text : undefined,
           nlu: tenant.policy.auditPolicy.storeDecisionPayloads ? nlu : undefined,
+          dm: tenant.policy.auditPolicy.storeDecisionPayloads ? dmAuditBase : undefined,
           ttl: auditTtlSeconds(tenant.policy.auditPolicy.retentionDays),
         });
 
@@ -156,15 +232,35 @@ export const handler = async (event: SQSEvent) => {
         continue;
       }
 
-      const offers = buildOffers({ tenantPolicy: effectivePolicy, debtor, conversation: conv });
-      const nba = nextBestAction({
-        tenantPolicy: effectivePolicy,
-        debtor,
-        conversation: conv,
-        nlu,
-      });
+      const dmNbaEnforced =
+        dm?.nba && strategy.playbook
+          ? enforcePlaybookOnNba({ nba: dm.nba, nlu, strategy, offersCount: offers.length })
+          : undefined;
 
-      const draft = await writeResponse({ tenant, debtor, conversation: conv, nlu, nba, offers });
+      const nba =
+        dmNbaEnforced?.nba ??
+        dm?.nba ??
+        nextBestAction({
+          tenantPolicy: effectivePolicy,
+          debtor,
+          conversation: conv,
+          nlu,
+          offers,
+        });
+
+      const dmAudit =
+        tenant.policy.auditPolicy.storeDecisionPayloads && dmAuditBase
+          ? dmNbaEnforced?.enforcement
+            ? ({
+                ...dmAuditBase,
+                enforcement: dmNbaEnforced.enforcement,
+              } as unknown)
+            : dmAuditBase
+          : undefined;
+
+      const draft =
+        dm?.messageDraft ??
+        (await writeResponse({ tenant, debtor, conversation: conv, nlu, nba, offers }));
       const safe = await safetyFilter({ text: draft });
 
       // Send outbound message
@@ -187,7 +283,7 @@ export const handler = async (event: SQSEvent) => {
       });
 
       // Apply cooldown decisions to ContactState (used by outbound policy gate)
-      if (nba.action === 'COOLDOWN') {
+      if (nba.action === 'COOLDOWN' || nba.action === 'END_REFUSAL') {
         await putContact(inbound.tenantId, debtor.debtorId, {
           nextContactAllowedAt: nba.nextContactAllowedAt,
         });
@@ -207,6 +303,7 @@ export const handler = async (event: SQSEvent) => {
         policy: tenant.policy.auditPolicy.storeDecisionPayloads ? policy : undefined,
         nlu: tenant.policy.auditPolicy.storeDecisionPayloads ? nlu : undefined,
         nba: tenant.policy.auditPolicy.storeDecisionPayloads ? nba : undefined,
+        dm: dmAudit,
         offers: tenant.policy.auditPolicy.storeDecisionPayloads ? offers : undefined,
         ttl: auditTtlSeconds(tenant.policy.auditPolicy.retentionDays),
       });

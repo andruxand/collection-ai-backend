@@ -67,6 +67,11 @@ vi.mock('../core/handoff/handoff', () => ({
   maybeHandoff: (...args: unknown[]) => maybeHandoff(...args),
 }));
 
+const decideWithDialogueManager = vi.fn();
+vi.mock('../core/dialogue/dialogueManager', () => ({
+  decideWithDialogueManager: (...args: unknown[]) => decideWithDialogueManager(...args),
+}));
+
 // Import after mocks
 import { handler } from './orchestrator';
 
@@ -161,6 +166,7 @@ function makeEvent(inbound: NormalizedInboundEvent): SQSEvent {
 describe('orchestrator handler', () => {
   beforeEach(() => {
     vi.useRealTimers();
+    process.env.DIALOGUE_MANAGER_ENABLED = 'false';
     ensureIdempotency.mockResolvedValue(true);
     getTenant.mockResolvedValue(makeTenant());
     resolveDebtor.mockResolvedValue(makeDebtor());
@@ -177,6 +183,7 @@ describe('orchestrator handler', () => {
     sendWhatsApp.mockResolvedValue(undefined);
     sendTelegram.mockResolvedValue(undefined);
     getCountryPolicy.mockResolvedValue(undefined);
+    decideWithDialogueManager.mockResolvedValue(undefined);
   });
 
   it('shows offers and increments attemptCount', async () => {
@@ -239,5 +246,61 @@ describe('orchestrator handler', () => {
     const calls = putContact.mock.calls.map((c) => c[2]) as Array<Record<string, unknown>>;
     const hasCooldown = calls.some((c) => typeof c.nextContactAllowedAt === 'string');
     expect(hasCooldown).toBe(true);
+  });
+
+  it('enforces playbook primaryAction when DM returns menu-loop NBA', async () => {
+    process.env.DIALOGUE_MANAGER_ENABLED = 'true';
+
+    getTenant.mockResolvedValue(
+      makeTenant({
+        policy: {
+          ...makeTenant().policy,
+          strategyPolicy: {
+            defaultObjective: 'NEGOTIATE',
+            objectivePlaybook: {
+              NEGOTIATE: {
+                goal: 'Llevar a un acuerdo concreto (oferta).',
+                primaryAction: 'SHOW_OFFERS',
+                secondaryAction: 'CLARIFY',
+              },
+            },
+          },
+        },
+      })
+    );
+
+    const nlu: NluResult = {
+      intent: 'NEGOTIATE',
+      entities: {},
+      confidence: 0.8,
+      topicShift: false,
+    };
+
+    decideWithDialogueManager.mockResolvedValue({
+      decision: {
+        nlu,
+        nba: { action: 'FALLBACK_MENU', nextState: 'WELCOME', slotsUpdate: {} },
+        confidence: 0.9,
+      },
+      nlu,
+      nba: { action: 'FALLBACK_MENU', nextState: 'WELCOME', slotsUpdate: {} },
+      confidence: 0.9,
+      raw: {},
+    });
+
+    const inbound: NormalizedInboundEvent = {
+      tenantId: 'tenant-demo',
+      channel: 'whatsapp',
+      debtorRef: { phoneE164: '+573001112233', waFrom: '573001112233' },
+      message: { id: 'm3', type: 'text', text: 'Quiero negociar' },
+      receivedAt: new Date().toISOString(),
+      meta: {},
+    };
+
+    await handler(makeEvent(inbound));
+
+    const convArg = putConversation.mock.calls[0][3] as ConversationState;
+    expect(convArg.state).toBe('OFFER_MENU');
+    expect(convArg.attemptCount).toBe(2);
   });
 });
