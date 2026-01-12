@@ -37,20 +37,28 @@ Rules:
 
 If a country policy is missing (seed not executed), the system falls back to the tenant policy, but this should be avoided in production.
 
+### Qué debe ir en CountryPolicy vs TenantPolicy
+
+- **CountryPolicy** (plantillas en `configs/policy-templates/*.json`) solo debe contener el baseline legal/jurisdiccional:
+	- `contactPolicy` (timezone, canales permitidos, `maxContactsPerDay`, flags y ventanas horarias).
+	- `contactLimitsByStage`.
+	- `cooldowns` mínimos (`noResponseDays`, `brokenPromiseDays`).
+
+- **TenantPolicy** (dentro del JSON del tenant, por ejemplo `configs/tenant-demo.json`) contiene los knobs propios del cliente/empresa:
+	- `offerPolicy`, `auditPolicy`, `exportPolicy`, `notificationPolicy`, `handoffPolicy`, `tonePolicy`.
+
+No dupliques estos bloques de TenantPolicy dentro de las plantillas de país: el código solo lee esos campos desde el tenant y tenerlos en ambos sitios genera confusión sin efecto real en runtime.
+
 ## Seeding (mock / seed)
 
 We ship JSON policy packs under:
 
-- `config/country-policies/*.json`
+- `configs/policy-templates/*.json`
 
 Seed them into DynamoDB:
 
 ```bash
-# set your Dynamo table name in env
-export TABLE_NAME="<your-dynamo-table-name>"
-
-# seed all policies from config/country-policies
-npm run seed:country-policies
+STAGE=dev AWS_REGION=us-east-1 npm run seed:country-policies
 ```
 
 ## Files to review

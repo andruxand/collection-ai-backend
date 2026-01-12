@@ -1,0 +1,4410 @@
+{
+  "service": {
+    "service": "collections-ai-mvp",
+    "serviceObject": {
+      "name": "collections-ai-mvp"
+    },
+    "provider": {
+      "name": "aws",
+      "profile": "adrian-personal",
+      "runtime": "nodejs22.x",
+      "versionFunctions": false,
+      "region": "us-east-1",
+      "stage": "dev",
+      "deploymentBucket": "collections-ai-mvp-us-east-1-deployments",
+      "logRetentionInDays": 14,
+      "httpApi": {
+        "cors": true,
+        "authorizers": {
+          "platformJwt": {
+            "type": "jwt",
+            "identitySource": "$request.header.Authorization",
+            "issuerUrl": {
+              "Fn::GetAtt": [
+                "PlatformUserPool",
+                "ProviderURL"
+              ]
+            },
+            "audience": [
+              {
+                "Ref": "PlatformUserPoolClient"
+              }
+            ]
+          }
+        }
+      },
+      "environment": {
+        "STAGE": "dev",
+        "PLATFORM_USER_POOL_ID": {
+          "Ref": "PlatformUserPool"
+        },
+        "IDEMPOTENCY_TTL_SECONDS": "604800",
+        "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+        "OUTBOUND_TICK_TENANT_LIMIT": "25",
+        "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+        "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+        "POWERTOOLS_LOG_LEVEL": "INFO",
+        "TABLE_NAME": "collections-ai-mvp-dev-core",
+        "INBOUND_QUEUE_URL": {
+          "Ref": "InboundQueue"
+        },
+        "INBOUND_QUEUE_ARN": {
+          "Fn::GetAtt": [
+            "InboundQueue",
+            "Arn"
+          ]
+        },
+        "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+        "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+        "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+        "TENANT_DEFAULT_ID": "tenant-demo",
+        "HANDOFF_QUEUE_URL": {
+          "Ref": "HandoffQueue"
+        },
+        "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+        "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+      },
+      "iam": {
+        "role": {
+          "statements": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "sqs:SendMessage",
+                "sqs:ReceiveMessage",
+                "sqs:DeleteMessage",
+                "sqs:GetQueueAttributes"
+              ],
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "InboundQueue",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::GetAtt": [
+                    "HandoffQueue",
+                    "Arn"
+                  ]
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:Query"
+              ],
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "CoreTable",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "CoreTable",
+                          "Arn"
+                        ]
+                      },
+                      "/index/*"
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "sqs:SendMessage"
+              ],
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "HandoffQueue",
+                    "Arn"
+                  ]
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:PutObject"
+              ],
+              "Resource": "arn:aws:s3:::*/*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "cognito-idp:ListUsers",
+                "cognito-idp:AdminCreateUser",
+                "cognito-idp:AdminDisableUser",
+                "cognito-idp:AdminEnableUser",
+                "cognito-idp:AdminUpdateUserAttributes",
+                "cognito-idp:AdminAddUserToGroup",
+                "cognito-idp:AdminRemoveUserFromGroup"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "ses:SendEmail",
+                "ses:SendRawEmail"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "secretsmanager:GetSecretValue"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:ListBucket"
+              ],
+              "Resource": "arn:aws:s3:::collections-ai-mvp-293262438125-us-east-1-deployments"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:GetObject",
+                "s3:PutObject"
+              ],
+              "Resource": "arn:aws:s3:::collections-ai-mvp-293262438125-us-east-1-deployments/*"
+            }
+          ]
+        }
+      },
+      "deploymentBucketObject": {
+        "name": "collections-ai-mvp-us-east-1-deployments",
+        "serverSideEncryption": "AES256"
+      },
+      "compiledCloudFormationTemplate": {
+        "AWSTemplateFormatVersion": "2010-09-09",
+        "Description": "The AWS CloudFormation template for this Serverless application",
+        "Resources": {
+          "WhatsappWebhookLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-whatsappWebhook",
+              "RetentionInDays": 14
+            }
+          },
+          "TelegramWebhookLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-telegramWebhook",
+              "RetentionInDays": 14
+            }
+          },
+          "OrchestratorLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-orchestrator",
+              "RetentionInDays": 14
+            }
+          },
+          "AdminUpsertTenantLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-adminUpsertTenant",
+              "RetentionInDays": 14
+            }
+          },
+          "AdminListHandoffsLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-adminListHandoffs",
+              "RetentionInDays": 14
+            }
+          },
+          "AdminCloseHandoffLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-adminCloseHandoff",
+              "RetentionInDays": 14
+            }
+          },
+          "PlatformListHandoffsLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-platformListHandoffs",
+              "RetentionInDays": 14
+            }
+          },
+          "PlatformHandoffDetailLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-platformHandoffDetail",
+              "RetentionInDays": 14
+            }
+          },
+          "PlatformListOperatorsLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-platformListOperators",
+              "RetentionInDays": 14
+            }
+          },
+          "PlatformInviteUserLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-platformInviteUser",
+              "RetentionInDays": 14
+            }
+          },
+          "PlatformSetUserStatusLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-platformSetUserStatus",
+              "RetentionInDays": 14
+            }
+          },
+          "PlatformIssueClientApiKeyLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-platformIssueClientApiKey",
+              "RetentionInDays": 14
+            }
+          },
+          "PlatformListClientApiKeysLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-platformListClientApiKeys",
+              "RetentionInDays": 14
+            }
+          },
+          "PlatformDisableClientApiKeyLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-platformDisableClientApiKey",
+              "RetentionInDays": 14
+            }
+          },
+          "PlatformListAuditLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-platformListAudit",
+              "RetentionInDays": 14
+            }
+          },
+          "ClientUpsertDebtorsLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-clientUpsertDebtors",
+              "RetentionInDays": 14
+            }
+          },
+          "PlatformAssignHandoffLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-platformAssignHandoff",
+              "RetentionInDays": 14
+            }
+          },
+          "PlatformGetTenantLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-platformGetTenant",
+              "RetentionInDays": 14
+            }
+          },
+          "PlatformUpsertTenantLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-platformUpsertTenant",
+              "RetentionInDays": 14
+            }
+          },
+          "PlatformCloseHandoffLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-platformCloseHandoff",
+              "RetentionInDays": 14
+            }
+          },
+          "HandoffNotifierLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-handoffNotifier",
+              "RetentionInDays": 14
+            }
+          },
+          "AdminExportAuditLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-adminExportAudit",
+              "RetentionInDays": 14
+            }
+          },
+          "AdminUpsertDebtorsLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-adminUpsertDebtors",
+              "RetentionInDays": 14
+            }
+          },
+          "RemindersTickLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-remindersTick",
+              "RetentionInDays": 14
+            }
+          },
+          "OutboundTickLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/collections-ai-mvp-dev-outboundTick",
+              "RetentionInDays": 14
+            }
+          },
+          "IamRoleLambdaExecution": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+              "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": [
+                        "lambda.amazonaws.com"
+                      ]
+                    },
+                    "Action": [
+                      "sts:AssumeRole"
+                    ]
+                  }
+                ]
+              },
+              "Policies": [
+                {
+                  "PolicyName": {
+                    "Fn::Join": [
+                      "-",
+                      [
+                        "collections-ai-mvp",
+                        "dev",
+                        "lambda"
+                      ]
+                    ]
+                  },
+                  "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "logs:CreateLogStream",
+                          "logs:CreateLogGroup",
+                          "logs:TagResource"
+                        ],
+                        "Resource": [
+                          {
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/collections-ai-mvp-dev*:*"
+                          }
+                        ]
+                      },
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "logs:PutLogEvents"
+                        ],
+                        "Resource": [
+                          {
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/collections-ai-mvp-dev*:*:*"
+                          }
+                        ]
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][0]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][1]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][2]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][3]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][4]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][5]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][6]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][7]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][8]"
+                      },
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "sqs:ReceiveMessage",
+                          "sqs:DeleteMessage",
+                          "sqs:GetQueueAttributes"
+                        ],
+                        "Resource": [
+                          {
+                            "Fn::GetAtt": [
+                              "InboundQueue",
+                              "Arn"
+                            ]
+                          },
+                          {
+                            "Fn::GetAtt": [
+                              "HandoffQueue",
+                              "Arn"
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ],
+              "Path": "/",
+              "RoleName": {
+                "Fn::Join": [
+                  "-",
+                  [
+                    "collections-ai-mvp",
+                    "dev",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    "lambdaRole"
+                  ]
+                ]
+              }
+            }
+          },
+          "WhatsappWebhookLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/whatsappWebhook.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-whatsappWebhook",
+              "MemorySize": 1024,
+              "Timeout": 15,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "WhatsappWebhookLogGroup"
+            ]
+          },
+          "TelegramWebhookLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/telegramWebhook.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-telegramWebhook",
+              "MemorySize": 1024,
+              "Timeout": 15,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "TelegramWebhookLogGroup"
+            ]
+          },
+          "OrchestratorLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/orchestrator.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-orchestrator",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "OrchestratorLogGroup"
+            ]
+          },
+          "AdminUpsertTenantLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/adminUpsertTenant.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-adminUpsertTenant",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "AdminUpsertTenantLogGroup"
+            ]
+          },
+          "AdminListHandoffsLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/adminListHandoffs.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-adminListHandoffs",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "AdminListHandoffsLogGroup"
+            ]
+          },
+          "AdminCloseHandoffLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/adminCloseHandoff.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-adminCloseHandoff",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "AdminCloseHandoffLogGroup"
+            ]
+          },
+          "PlatformListHandoffsLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/platformListHandoffs.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-platformListHandoffs",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "PlatformListHandoffsLogGroup"
+            ]
+          },
+          "PlatformHandoffDetailLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/platformHandoffDetail.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-platformHandoffDetail",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "PlatformHandoffDetailLogGroup"
+            ]
+          },
+          "PlatformListOperatorsLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/platformListOperators.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-platformListOperators",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "PlatformListOperatorsLogGroup"
+            ]
+          },
+          "PlatformInviteUserLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/platformInviteUser.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-platformInviteUser",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "PlatformInviteUserLogGroup"
+            ]
+          },
+          "PlatformSetUserStatusLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/platformSetUserStatus.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-platformSetUserStatus",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "PlatformSetUserStatusLogGroup"
+            ]
+          },
+          "PlatformIssueClientApiKeyLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/platformIssueClientApiKey.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-platformIssueClientApiKey",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "PlatformIssueClientApiKeyLogGroup"
+            ]
+          },
+          "PlatformListClientApiKeysLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/platformListClientApiKeys.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-platformListClientApiKeys",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "PlatformListClientApiKeysLogGroup"
+            ]
+          },
+          "PlatformDisableClientApiKeyLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/platformDisableClientApiKey.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-platformDisableClientApiKey",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "PlatformDisableClientApiKeyLogGroup"
+            ]
+          },
+          "PlatformListAuditLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/platformListAudit.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-platformListAudit",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "PlatformListAuditLogGroup"
+            ]
+          },
+          "ClientUpsertDebtorsLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/clientUpsertDebtors.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-clientUpsertDebtors",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "ClientUpsertDebtorsLogGroup"
+            ]
+          },
+          "PlatformAssignHandoffLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/platformAssignHandoff.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-platformAssignHandoff",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "PlatformAssignHandoffLogGroup"
+            ]
+          },
+          "PlatformGetTenantLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/platformGetTenant.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-platformGetTenant",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "PlatformGetTenantLogGroup"
+            ]
+          },
+          "PlatformUpsertTenantLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/platformUpsertTenant.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-platformUpsertTenant",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "PlatformUpsertTenantLogGroup"
+            ]
+          },
+          "PlatformCloseHandoffLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/platformCloseHandoff.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-platformCloseHandoff",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "PlatformCloseHandoffLogGroup"
+            ]
+          },
+          "HandoffNotifierLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/handoffNotifier.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-handoffNotifier",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "HandoffNotifierLogGroup"
+            ]
+          },
+          "AdminExportAuditLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/adminExportAudit.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-adminExportAudit",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "AdminExportAuditLogGroup"
+            ]
+          },
+          "AdminUpsertDebtorsLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/adminUpsertDebtors.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-adminUpsertDebtors",
+              "MemorySize": 1024,
+              "Timeout": 20,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "AdminUpsertDebtorsLogGroup"
+            ]
+          },
+          "RemindersTickLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/remindersTick.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-remindersTick",
+              "MemorySize": 1024,
+              "Timeout": 30,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "RemindersTickLogGroup"
+            ]
+          },
+          "OutboundTickLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "collections-ai-mvp-us-east-1-deployments",
+                "S3Key": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z/collections-ai-mvp.zip"
+              },
+              "Handler": "src/handlers/outboundTick.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "collections-ai-mvp-dev-outboundTick",
+              "MemorySize": 1024,
+              "Timeout": 60,
+              "Environment": {
+                "Variables": {
+                  "STAGE": "dev",
+                  "PLATFORM_USER_POOL_ID": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PLATFORM_USER_POOL_ID\"]"
+                  },
+                  "IDEMPOTENCY_TTL_SECONDS": "604800",
+                  "OUTBOUND_TICK_DEBTOR_LIMIT": "50",
+                  "OUTBOUND_TICK_TENANT_LIMIT": "25",
+                  "PLATFORM_AUDIT_RETENTION_DAYS": "180",
+                  "POWERTOOLS_SERVICE_NAME": "collections-ai-mvp",
+                  "POWERTOOLS_LOG_LEVEL": "INFO",
+                  "TABLE_NAME": "collections-ai-mvp-dev-core",
+                  "INBOUND_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_URL\"]"
+                  },
+                  "INBOUND_QUEUE_ARN": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"INBOUND_QUEUE_ARN\"]"
+                  },
+                  "TELEGRAM_WEBHOOK_SECRET_TOKEN": "2a8f4641d5799e019106c35e83e76ea85264bae7f204fb9511332a3bb6be5890",
+                  "ADMIN_API_KEY": "G7VMoDYAU6CwVIhWx13/oyWzy3ZHD0uB/DzY5Ra5n1Q=",
+                  "API_KEY_PEPPER": "r4iyVjBoUMTTeYWOyEO/rDbfY4C0z8QNhxvo0WXhOFI=",
+                  "TENANT_DEFAULT_ID": "tenant-demo",
+                  "HANDOFF_QUEUE_URL": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"HANDOFF_QUEUE_URL\"]"
+                  },
+                  "LLM_PROVIDER_JSON": "{\"provider\":\"openai\",\"model\":\"gpt-5-nano\"}",
+                  "LLM_OPENAI_KEY_SECRET_ID": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "OutboundTickLogGroup"
+            ]
+          },
+          "RemindersTickEventsRuleSchedule1": {
+            "Type": "AWS::Events::Rule",
+            "Properties": {
+              "ScheduleExpression": "rate(5 minutes)",
+              "State": "ENABLED",
+              "Targets": [
+                {
+                  "Arn": {
+                    "Fn::GetAtt": [
+                      "RemindersTickLambdaFunction",
+                      "Arn"
+                    ]
+                  },
+                  "Id": "remindersTickSchedule"
+                }
+              ]
+            }
+          },
+          "RemindersTickLambdaPermissionEventsRuleSchedule1": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "RemindersTickLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "events.amazonaws.com",
+              "SourceArn": {
+                "Fn::GetAtt": [
+                  "RemindersTickEventsRuleSchedule1",
+                  "Arn"
+                ]
+              }
+            }
+          },
+          "OutboundTickEventsRuleSchedule1": {
+            "Type": "AWS::Events::Rule",
+            "Properties": {
+              "ScheduleExpression": "rate(15 minutes)",
+              "State": "ENABLED",
+              "Targets": [
+                {
+                  "Arn": {
+                    "Fn::GetAtt": [
+                      "OutboundTickLambdaFunction",
+                      "Arn"
+                    ]
+                  },
+                  "Id": "outboundTickSchedule"
+                }
+              ]
+            }
+          },
+          "OutboundTickLambdaPermissionEventsRuleSchedule1": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "OutboundTickLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "events.amazonaws.com",
+              "SourceArn": {
+                "Fn::GetAtt": [
+                  "OutboundTickEventsRuleSchedule1",
+                  "Arn"
+                ]
+              }
+            }
+          },
+          "OrchestratorEventSourceMappingSQSInboundQueue": {
+            "Type": "AWS::Lambda::EventSourceMapping",
+            "DependsOn": [
+              "IamRoleLambdaExecution"
+            ],
+            "Properties": {
+              "BatchSize": 1,
+              "EventSourceArn": {
+                "Fn::GetAtt": [
+                  "InboundQueue",
+                  "Arn"
+                ]
+              },
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "OrchestratorLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Enabled": true
+            }
+          },
+          "HandoffNotifierEventSourceMappingSQSHandoffQueue": {
+            "Type": "AWS::Lambda::EventSourceMapping",
+            "DependsOn": [
+              "IamRoleLambdaExecution"
+            ],
+            "Properties": {
+              "BatchSize": 10,
+              "EventSourceArn": {
+                "Fn::GetAtt": [
+                  "HandoffQueue",
+                  "Arn"
+                ]
+              },
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "HandoffNotifierLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Enabled": true
+            }
+          },
+          "HttpApi": {
+            "Type": "AWS::ApiGatewayV2::Api",
+            "Properties": {
+              "Name": "dev-collections-ai-mvp",
+              "ProtocolType": "HTTP",
+              "CorsConfiguration": {
+                "AllowHeaders": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent",
+                  "X-Amzn-Trace-Id"
+                ],
+                "AllowMethods": [
+                  "OPTIONS",
+                  "GET",
+                  "POST",
+                  "PUT",
+                  "PATCH",
+                  "HEAD",
+                  "DELETE"
+                ],
+                "AllowOrigins": [
+                  "*"
+                ]
+              }
+            }
+          },
+          "HttpApiStage": {
+            "Type": "AWS::ApiGatewayV2::Stage",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "StageName": "$default",
+              "AutoDeploy": true,
+              "DefaultRouteSettings": {
+                "DetailedMetricsEnabled": false
+              }
+            }
+          },
+          "HttpApiAuthorizerPlatformJwt": {
+            "Type": "AWS::ApiGatewayV2::Authorizer",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "Name": "platformJwt",
+              "IdentitySource": [
+                "$request.header.Authorization"
+              ],
+              "AuthorizerType": "JWT",
+              "JwtConfiguration": {
+                "Audience": [
+                  {
+                    "$ref": "$[\"service\"][\"provider\"][\"httpApi\"][\"authorizers\"][\"platformJwt\"][\"audience\"][0]"
+                  }
+                ],
+                "Issuer": {
+                  "$ref": "$[\"service\"][\"provider\"][\"httpApi\"][\"authorizers\"][\"platformJwt\"][\"issuerUrl\"]"
+                }
+              }
+            }
+          },
+          "WhatsappWebhookLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "WhatsappWebhookLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationWhatsappWebhook": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"WhatsappWebhookLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRouteAnyWebhooksWhatsapp": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "ANY /webhooks/whatsapp",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationWhatsappWebhook"
+                    }
+                  ]
+                ]
+              }
+            },
+            "DependsOn": "HttpApiIntegrationWhatsappWebhook"
+          },
+          "TelegramWebhookLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "TelegramWebhookLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationTelegramWebhook": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"TelegramWebhookLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRoutePostWebhooksTelegramBotkeyVar": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "POST /webhooks/telegram/{botKey}",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationTelegramWebhook"
+                    }
+                  ]
+                ]
+              }
+            },
+            "DependsOn": "HttpApiIntegrationTelegramWebhook"
+          },
+          "AdminUpsertTenantLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "AdminUpsertTenantLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationAdminUpsertTenant": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"AdminUpsertTenantLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRoutePostAdminTenant": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "POST /admin/tenant",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationAdminUpsertTenant"
+                    }
+                  ]
+                ]
+              }
+            },
+            "DependsOn": "HttpApiIntegrationAdminUpsertTenant"
+          },
+          "AdminListHandoffsLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "AdminListHandoffsLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationAdminListHandoffs": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"AdminListHandoffsLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRouteGetAdminHandoffs": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "GET /admin/handoffs",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationAdminListHandoffs"
+                    }
+                  ]
+                ]
+              }
+            },
+            "DependsOn": "HttpApiIntegrationAdminListHandoffs"
+          },
+          "AdminCloseHandoffLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "AdminCloseHandoffLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationAdminCloseHandoff": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"AdminCloseHandoffLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRoutePostAdminHandoffsClose": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "POST /admin/handoffs/close",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationAdminCloseHandoff"
+                    }
+                  ]
+                ]
+              }
+            },
+            "DependsOn": "HttpApiIntegrationAdminCloseHandoff"
+          },
+          "PlatformListHandoffsLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "PlatformListHandoffsLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationPlatformListHandoffs": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"PlatformListHandoffsLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRouteGetPlatformHandoffs": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "GET /platform/handoffs",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationPlatformListHandoffs"
+                    }
+                  ]
+                ]
+              },
+              "AuthorizationType": "JWT",
+              "AuthorizerId": {
+                "Ref": "HttpApiAuthorizerPlatformJwt"
+              }
+            },
+            "DependsOn": "HttpApiIntegrationPlatformListHandoffs"
+          },
+          "PlatformHandoffDetailLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "PlatformHandoffDetailLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationPlatformHandoffDetail": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"PlatformHandoffDetailLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRouteGetPlatformHandoffsDetail": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "GET /platform/handoffs/detail",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationPlatformHandoffDetail"
+                    }
+                  ]
+                ]
+              },
+              "AuthorizationType": "JWT",
+              "AuthorizerId": {
+                "Ref": "HttpApiAuthorizerPlatformJwt"
+              }
+            },
+            "DependsOn": "HttpApiIntegrationPlatformHandoffDetail"
+          },
+          "PlatformListOperatorsLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "PlatformListOperatorsLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationPlatformListOperators": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"PlatformListOperatorsLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRouteGetPlatformOperators": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "GET /platform/operators",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationPlatformListOperators"
+                    }
+                  ]
+                ]
+              },
+              "AuthorizationType": "JWT",
+              "AuthorizerId": {
+                "Ref": "HttpApiAuthorizerPlatformJwt"
+              }
+            },
+            "DependsOn": "HttpApiIntegrationPlatformListOperators"
+          },
+          "PlatformInviteUserLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "PlatformInviteUserLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationPlatformInviteUser": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"PlatformInviteUserLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRoutePostPlatformUsersInvite": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "POST /platform/users/invite",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationPlatformInviteUser"
+                    }
+                  ]
+                ]
+              },
+              "AuthorizationType": "JWT",
+              "AuthorizerId": {
+                "Ref": "HttpApiAuthorizerPlatformJwt"
+              }
+            },
+            "DependsOn": "HttpApiIntegrationPlatformInviteUser"
+          },
+          "PlatformSetUserStatusLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "PlatformSetUserStatusLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationPlatformSetUserStatus": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"PlatformSetUserStatusLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRoutePostPlatformUsersStatus": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "POST /platform/users/status",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationPlatformSetUserStatus"
+                    }
+                  ]
+                ]
+              },
+              "AuthorizationType": "JWT",
+              "AuthorizerId": {
+                "Ref": "HttpApiAuthorizerPlatformJwt"
+              }
+            },
+            "DependsOn": "HttpApiIntegrationPlatformSetUserStatus"
+          },
+          "PlatformIssueClientApiKeyLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "PlatformIssueClientApiKeyLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationPlatformIssueClientApiKey": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"PlatformIssueClientApiKeyLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRoutePostPlatformApiDashkeysIssue": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "POST /platform/api-keys/issue",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationPlatformIssueClientApiKey"
+                    }
+                  ]
+                ]
+              },
+              "AuthorizationType": "JWT",
+              "AuthorizerId": {
+                "Ref": "HttpApiAuthorizerPlatformJwt"
+              }
+            },
+            "DependsOn": "HttpApiIntegrationPlatformIssueClientApiKey"
+          },
+          "PlatformListClientApiKeysLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "PlatformListClientApiKeysLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationPlatformListClientApiKeys": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"PlatformListClientApiKeysLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRouteGetPlatformApiDashkeys": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "GET /platform/api-keys",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationPlatformListClientApiKeys"
+                    }
+                  ]
+                ]
+              },
+              "AuthorizationType": "JWT",
+              "AuthorizerId": {
+                "Ref": "HttpApiAuthorizerPlatformJwt"
+              }
+            },
+            "DependsOn": "HttpApiIntegrationPlatformListClientApiKeys"
+          },
+          "PlatformDisableClientApiKeyLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "PlatformDisableClientApiKeyLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationPlatformDisableClientApiKey": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"PlatformDisableClientApiKeyLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRoutePostPlatformApiDashkeysDisable": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "POST /platform/api-keys/disable",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationPlatformDisableClientApiKey"
+                    }
+                  ]
+                ]
+              },
+              "AuthorizationType": "JWT",
+              "AuthorizerId": {
+                "Ref": "HttpApiAuthorizerPlatformJwt"
+              }
+            },
+            "DependsOn": "HttpApiIntegrationPlatformDisableClientApiKey"
+          },
+          "PlatformListAuditLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "PlatformListAuditLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationPlatformListAudit": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"PlatformListAuditLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRouteGetPlatformAudit": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "GET /platform/audit",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationPlatformListAudit"
+                    }
+                  ]
+                ]
+              },
+              "AuthorizationType": "JWT",
+              "AuthorizerId": {
+                "Ref": "HttpApiAuthorizerPlatformJwt"
+              }
+            },
+            "DependsOn": "HttpApiIntegrationPlatformListAudit"
+          },
+          "ClientUpsertDebtorsLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "ClientUpsertDebtorsLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationClientUpsertDebtors": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"ClientUpsertDebtorsLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRoutePostClientDebtorsUpsert": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "POST /client/debtors/upsert",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationClientUpsertDebtors"
+                    }
+                  ]
+                ]
+              }
+            },
+            "DependsOn": "HttpApiIntegrationClientUpsertDebtors"
+          },
+          "PlatformAssignHandoffLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "PlatformAssignHandoffLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationPlatformAssignHandoff": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"PlatformAssignHandoffLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRoutePostPlatformHandoffsAssign": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "POST /platform/handoffs/assign",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationPlatformAssignHandoff"
+                    }
+                  ]
+                ]
+              },
+              "AuthorizationType": "JWT",
+              "AuthorizerId": {
+                "Ref": "HttpApiAuthorizerPlatformJwt"
+              }
+            },
+            "DependsOn": "HttpApiIntegrationPlatformAssignHandoff"
+          },
+          "PlatformGetTenantLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "PlatformGetTenantLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationPlatformGetTenant": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"PlatformGetTenantLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRouteGetPlatformTenant": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "GET /platform/tenant",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationPlatformGetTenant"
+                    }
+                  ]
+                ]
+              },
+              "AuthorizationType": "JWT",
+              "AuthorizerId": {
+                "Ref": "HttpApiAuthorizerPlatformJwt"
+              }
+            },
+            "DependsOn": "HttpApiIntegrationPlatformGetTenant"
+          },
+          "PlatformUpsertTenantLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "PlatformUpsertTenantLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationPlatformUpsertTenant": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"PlatformUpsertTenantLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRoutePostPlatformTenant": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "POST /platform/tenant",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationPlatformUpsertTenant"
+                    }
+                  ]
+                ]
+              },
+              "AuthorizationType": "JWT",
+              "AuthorizerId": {
+                "Ref": "HttpApiAuthorizerPlatformJwt"
+              }
+            },
+            "DependsOn": "HttpApiIntegrationPlatformUpsertTenant"
+          },
+          "PlatformCloseHandoffLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "PlatformCloseHandoffLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationPlatformCloseHandoff": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"PlatformCloseHandoffLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRoutePostPlatformHandoffsClose": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "POST /platform/handoffs/close",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationPlatformCloseHandoff"
+                    }
+                  ]
+                ]
+              },
+              "AuthorizationType": "JWT",
+              "AuthorizerId": {
+                "Ref": "HttpApiAuthorizerPlatformJwt"
+              }
+            },
+            "DependsOn": "HttpApiIntegrationPlatformCloseHandoff"
+          },
+          "AdminExportAuditLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "AdminExportAuditLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationAdminExportAudit": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"AdminExportAuditLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRoutePostAdminExportAudit": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "POST /admin/export/audit",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationAdminExportAudit"
+                    }
+                  ]
+                ]
+              }
+            },
+            "DependsOn": "HttpApiIntegrationAdminExportAudit"
+          },
+          "AdminUpsertDebtorsLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "AdminUpsertDebtorsLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationAdminUpsertDebtors": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"AdminUpsertDebtorsLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRoutePostAdminDebtors": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "POST /admin/debtors",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationAdminUpsertDebtors"
+                    }
+                  ]
+                ]
+              }
+            },
+            "DependsOn": "HttpApiIntegrationAdminUpsertDebtors"
+          },
+          "PlatformUserPool": {
+            "Type": "AWS::Cognito::UserPool",
+            "Properties": {
+              "UserPoolName": "collections-ai-mvp-dev-platform",
+              "UsernameAttributes": [
+                "email"
+              ],
+              "AutoVerifiedAttributes": [
+                "email"
+              ],
+              "Schema": [
+                {
+                  "Name": "tenantIds",
+                  "AttributeDataType": "String",
+                  "Mutable": true
+                },
+                {
+                  "Name": "role",
+                  "AttributeDataType": "String",
+                  "Mutable": true
+                }
+              ]
+            }
+          },
+          "PlatformUserPoolClient": {
+            "Type": "AWS::Cognito::UserPoolClient",
+            "Properties": {
+              "ClientName": "collections-ai-mvp-dev-platform-client",
+              "UserPoolId": {
+                "Ref": "PlatformUserPool"
+              },
+              "GenerateSecret": false,
+              "ExplicitAuthFlows": [
+                "ALLOW_USER_SRP_AUTH",
+                "ALLOW_USER_PASSWORD_AUTH",
+                "ALLOW_REFRESH_TOKEN_AUTH"
+              ]
+            }
+          },
+          "InboundQueue": {
+            "Type": "AWS::SQS::Queue",
+            "Properties": {
+              "QueueName": "collections-ai-mvp-dev-inbound.fifo",
+              "FifoQueue": true,
+              "ContentBasedDeduplication": true,
+              "VisibilityTimeout": 60,
+              "MessageRetentionPeriod": 345600
+            }
+          },
+          "HandoffQueue": {
+            "Type": "AWS::SQS::Queue",
+            "Properties": {
+              "QueueName": "collections-ai-mvp-dev-handoff.fifo",
+              "FifoQueue": true,
+              "ContentBasedDeduplication": true,
+              "VisibilityTimeout": 60,
+              "MessageRetentionPeriod": 345600
+            }
+          },
+          "CoreTable": {
+            "Type": "AWS::DynamoDB::Table",
+            "Properties": {
+              "TableName": "collections-ai-mvp-dev-core",
+              "BillingMode": "PAY_PER_REQUEST",
+              "SSESpecification": {
+                "SSEEnabled": true
+              },
+              "AttributeDefinitions": [
+                {
+                  "AttributeName": "pk",
+                  "AttributeType": "S"
+                },
+                {
+                  "AttributeName": "sk",
+                  "AttributeType": "S"
+                },
+                {
+                  "AttributeName": "gsi1pk",
+                  "AttributeType": "S"
+                },
+                {
+                  "AttributeName": "gsi1sk",
+                  "AttributeType": "S"
+                }
+              ],
+              "KeySchema": [
+                {
+                  "AttributeName": "pk",
+                  "KeyType": "HASH"
+                },
+                {
+                  "AttributeName": "sk",
+                  "KeyType": "RANGE"
+                }
+              ],
+              "GlobalSecondaryIndexes": [
+                {
+                  "IndexName": "gsi1",
+                  "KeySchema": [
+                    {
+                      "AttributeName": "gsi1pk",
+                      "KeyType": "HASH"
+                    },
+                    {
+                      "AttributeName": "gsi1sk",
+                      "KeyType": "RANGE"
+                    }
+                  ],
+                  "Projection": {
+                    "ProjectionType": "ALL"
+                  }
+                }
+              ],
+              "TimeToLiveSpecification": {
+                "AttributeName": "ttl",
+                "Enabled": true
+              }
+            }
+          }
+        },
+        "Outputs": {
+          "ServerlessDeploymentBucketName": {
+            "Value": "collections-ai-mvp-us-east-1-deployments",
+            "Export": {
+              "Name": "sls-collections-ai-mvp-dev-ServerlessDeploymentBucketName"
+            }
+          },
+          "HttpApiId": {
+            "Description": "Id of the HTTP API",
+            "Value": {
+              "Ref": "HttpApi"
+            },
+            "Export": {
+              "Name": "sls-collections-ai-mvp-dev-HttpApiId"
+            }
+          },
+          "HttpApiUrl": {
+            "Description": "URL of the HTTP API",
+            "Value": {
+              "Fn::Join": [
+                "",
+                [
+                  "https://",
+                  {
+                    "Ref": "HttpApi"
+                  },
+                  ".execute-api.",
+                  {
+                    "Ref": "AWS::Region"
+                  },
+                  ".",
+                  {
+                    "Ref": "AWS::URLSuffix"
+                  }
+                ]
+              ]
+            },
+            "Export": {
+              "Name": "sls-collections-ai-mvp-dev-HttpApiUrl"
+            }
+          }
+        }
+      },
+      "vpc": {}
+    },
+    "custom": {
+      "esbuild": {
+        "bundle": true,
+        "minify": false,
+        "sourcemap": true,
+        "exclude": [
+          "aws-sdk"
+        ]
+      }
+    },
+    "plugins": [
+      "serverless-esbuild"
+    ],
+    "pluginsData": {},
+    "functions": {
+      "whatsappWebhook": {
+        "handler": "src/handlers/whatsappWebhook.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/webhooks/whatsapp",
+              "method": "any"
+            },
+            "resolvedMethod": "ANY",
+            "resolvedPath": "/webhooks/whatsapp"
+          }
+        ],
+        "timeout": 15,
+        "name": "collections-ai-mvp-dev-whatsappWebhook",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "telegramWebhook": {
+        "handler": "src/handlers/telegramWebhook.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/webhooks/telegram/{botKey}",
+              "method": "post"
+            },
+            "resolvedMethod": "POST",
+            "resolvedPath": "/webhooks/telegram/{botKey}"
+          }
+        ],
+        "timeout": 15,
+        "name": "collections-ai-mvp-dev-telegramWebhook",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "orchestrator": {
+        "handler": "src/handlers/orchestrator.handler",
+        "events": [
+          {
+            "sqs": {
+              "arn": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"IamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][11][\"Resource\"][0]"
+              },
+              "batchSize": 1
+            }
+          }
+        ],
+        "timeout": 60,
+        "name": "collections-ai-mvp-dev-orchestrator",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "adminUpsertTenant": {
+        "handler": "src/handlers/adminUpsertTenant.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/admin/tenant",
+              "method": "post"
+            },
+            "resolvedMethod": "POST",
+            "resolvedPath": "/admin/tenant"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-adminUpsertTenant",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "adminListHandoffs": {
+        "handler": "src/handlers/adminListHandoffs.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/admin/handoffs",
+              "method": "get"
+            },
+            "resolvedMethod": "GET",
+            "resolvedPath": "/admin/handoffs"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-adminListHandoffs",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "adminCloseHandoff": {
+        "handler": "src/handlers/adminCloseHandoff.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/admin/handoffs/close",
+              "method": "post"
+            },
+            "resolvedMethod": "POST",
+            "resolvedPath": "/admin/handoffs/close"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-adminCloseHandoff",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "platformListHandoffs": {
+        "handler": "src/handlers/platformListHandoffs.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/platform/handoffs",
+              "method": "get",
+              "authorizer": {
+                "name": "platformJwt"
+              }
+            },
+            "resolvedMethod": "GET",
+            "resolvedPath": "/platform/handoffs"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-platformListHandoffs",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "platformHandoffDetail": {
+        "handler": "src/handlers/platformHandoffDetail.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/platform/handoffs/detail",
+              "method": "get",
+              "authorizer": {
+                "name": "platformJwt"
+              }
+            },
+            "resolvedMethod": "GET",
+            "resolvedPath": "/platform/handoffs/detail"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-platformHandoffDetail",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "platformListOperators": {
+        "handler": "src/handlers/platformListOperators.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/platform/operators",
+              "method": "get",
+              "authorizer": {
+                "name": "platformJwt"
+              }
+            },
+            "resolvedMethod": "GET",
+            "resolvedPath": "/platform/operators"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-platformListOperators",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "platformInviteUser": {
+        "handler": "src/handlers/platformInviteUser.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/platform/users/invite",
+              "method": "post",
+              "authorizer": {
+                "name": "platformJwt"
+              }
+            },
+            "resolvedMethod": "POST",
+            "resolvedPath": "/platform/users/invite"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-platformInviteUser",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "platformSetUserStatus": {
+        "handler": "src/handlers/platformSetUserStatus.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/platform/users/status",
+              "method": "post",
+              "authorizer": {
+                "name": "platformJwt"
+              }
+            },
+            "resolvedMethod": "POST",
+            "resolvedPath": "/platform/users/status"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-platformSetUserStatus",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "platformIssueClientApiKey": {
+        "handler": "src/handlers/platformIssueClientApiKey.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/platform/api-keys/issue",
+              "method": "post",
+              "authorizer": {
+                "name": "platformJwt"
+              }
+            },
+            "resolvedMethod": "POST",
+            "resolvedPath": "/platform/api-keys/issue"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-platformIssueClientApiKey",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "platformListClientApiKeys": {
+        "handler": "src/handlers/platformListClientApiKeys.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/platform/api-keys",
+              "method": "get",
+              "authorizer": {
+                "name": "platformJwt"
+              }
+            },
+            "resolvedMethod": "GET",
+            "resolvedPath": "/platform/api-keys"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-platformListClientApiKeys",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "platformDisableClientApiKey": {
+        "handler": "src/handlers/platformDisableClientApiKey.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/platform/api-keys/disable",
+              "method": "post",
+              "authorizer": {
+                "name": "platformJwt"
+              }
+            },
+            "resolvedMethod": "POST",
+            "resolvedPath": "/platform/api-keys/disable"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-platformDisableClientApiKey",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "platformListAudit": {
+        "handler": "src/handlers/platformListAudit.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/platform/audit",
+              "method": "get",
+              "authorizer": {
+                "name": "platformJwt"
+              }
+            },
+            "resolvedMethod": "GET",
+            "resolvedPath": "/platform/audit"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-platformListAudit",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "clientUpsertDebtors": {
+        "handler": "src/handlers/clientUpsertDebtors.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/client/debtors/upsert",
+              "method": "post"
+            },
+            "resolvedMethod": "POST",
+            "resolvedPath": "/client/debtors/upsert"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-clientUpsertDebtors",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "platformAssignHandoff": {
+        "handler": "src/handlers/platformAssignHandoff.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/platform/handoffs/assign",
+              "method": "post",
+              "authorizer": {
+                "name": "platformJwt"
+              }
+            },
+            "resolvedMethod": "POST",
+            "resolvedPath": "/platform/handoffs/assign"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-platformAssignHandoff",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "platformGetTenant": {
+        "handler": "src/handlers/platformGetTenant.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/platform/tenant",
+              "method": "get",
+              "authorizer": {
+                "name": "platformJwt"
+              }
+            },
+            "resolvedMethod": "GET",
+            "resolvedPath": "/platform/tenant"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-platformGetTenant",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "platformUpsertTenant": {
+        "handler": "src/handlers/platformUpsertTenant.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/platform/tenant",
+              "method": "post",
+              "authorizer": {
+                "name": "platformJwt"
+              }
+            },
+            "resolvedMethod": "POST",
+            "resolvedPath": "/platform/tenant"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-platformUpsertTenant",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "platformCloseHandoff": {
+        "handler": "src/handlers/platformCloseHandoff.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/platform/handoffs/close",
+              "method": "post",
+              "authorizer": {
+                "name": "platformJwt"
+              }
+            },
+            "resolvedMethod": "POST",
+            "resolvedPath": "/platform/handoffs/close"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-platformCloseHandoff",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "handoffNotifier": {
+        "handler": "src/handlers/handoffNotifier.handler",
+        "events": [
+          {
+            "sqs": {
+              "arn": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"IamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][11][\"Resource\"][1]"
+              }
+            }
+          }
+        ],
+        "timeout": 60,
+        "name": "collections-ai-mvp-dev-handoffNotifier",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "adminExportAudit": {
+        "handler": "src/handlers/adminExportAudit.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/admin/export/audit",
+              "method": "post"
+            },
+            "resolvedMethod": "POST",
+            "resolvedPath": "/admin/export/audit"
+          }
+        ],
+        "timeout": 60,
+        "name": "collections-ai-mvp-dev-adminExportAudit",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "adminUpsertDebtors": {
+        "handler": "src/handlers/adminUpsertDebtors.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/admin/debtors",
+              "method": "post"
+            },
+            "resolvedMethod": "POST",
+            "resolvedPath": "/admin/debtors"
+          }
+        ],
+        "timeout": 20,
+        "name": "collections-ai-mvp-dev-adminUpsertDebtors",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "remindersTick": {
+        "handler": "src/handlers/remindersTick.handler",
+        "events": [
+          {
+            "schedule": "rate(5 minutes)"
+          }
+        ],
+        "timeout": 30,
+        "name": "collections-ai-mvp-dev-remindersTick",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      },
+      "outboundTick": {
+        "handler": "src/handlers/outboundTick.handler",
+        "events": [
+          {
+            "schedule": "rate(15 minutes)"
+          }
+        ],
+        "timeout": 60,
+        "name": "collections-ai-mvp-dev-outboundTick",
+        "package": {},
+        "memory": 1024,
+        "runtime": "nodejs22.x",
+        "vpc": {}
+      }
+    },
+    "resources": {
+      "Resources": {
+        "PlatformUserPool": {
+          "Type": "AWS::Cognito::UserPool",
+          "Properties": {
+            "UserPoolName": "collections-ai-mvp-dev-platform",
+            "UsernameAttributes": [
+              "email"
+            ],
+            "AutoVerifiedAttributes": [
+              "email"
+            ],
+            "Schema": [
+              {
+                "Name": "tenantIds",
+                "AttributeDataType": "String",
+                "Mutable": true
+              },
+              {
+                "Name": "role",
+                "AttributeDataType": "String",
+                "Mutable": true
+              }
+            ]
+          }
+        },
+        "PlatformUserPoolClient": {
+          "Type": "AWS::Cognito::UserPoolClient",
+          "Properties": {
+            "ClientName": "collections-ai-mvp-dev-platform-client",
+            "UserPoolId": {
+              "Ref": "PlatformUserPool"
+            },
+            "GenerateSecret": false,
+            "ExplicitAuthFlows": [
+              "ALLOW_USER_SRP_AUTH",
+              "ALLOW_USER_PASSWORD_AUTH",
+              "ALLOW_REFRESH_TOKEN_AUTH"
+            ]
+          }
+        },
+        "InboundQueue": {
+          "Type": "AWS::SQS::Queue",
+          "Properties": {
+            "QueueName": "collections-ai-mvp-dev-inbound.fifo",
+            "FifoQueue": true,
+            "ContentBasedDeduplication": true,
+            "VisibilityTimeout": 60,
+            "MessageRetentionPeriod": 345600
+          }
+        },
+        "HandoffQueue": {
+          "Type": "AWS::SQS::Queue",
+          "Properties": {
+            "QueueName": "collections-ai-mvp-dev-handoff.fifo",
+            "FifoQueue": true,
+            "ContentBasedDeduplication": true,
+            "VisibilityTimeout": 60,
+            "MessageRetentionPeriod": 345600
+          }
+        },
+        "CoreTable": {
+          "Type": "AWS::DynamoDB::Table",
+          "Properties": {
+            "TableName": "collections-ai-mvp-dev-core",
+            "BillingMode": "PAY_PER_REQUEST",
+            "SSESpecification": {
+              "SSEEnabled": true
+            },
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "pk",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "sk",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "gsi1pk",
+                "AttributeType": "S"
+              },
+              {
+                "AttributeName": "gsi1sk",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "pk",
+                "KeyType": "HASH"
+              },
+              {
+                "AttributeName": "sk",
+                "KeyType": "RANGE"
+              }
+            ],
+            "GlobalSecondaryIndexes": [
+              {
+                "IndexName": "gsi1",
+                "KeySchema": [
+                  {
+                    "AttributeName": "gsi1pk",
+                    "KeyType": "HASH"
+                  },
+                  {
+                    "AttributeName": "gsi1sk",
+                    "KeyType": "RANGE"
+                  }
+                ],
+                "Projection": {
+                  "ProjectionType": "ALL"
+                }
+              }
+            ],
+            "TimeToLiveSpecification": {
+              "AttributeName": "ttl",
+              "Enabled": true
+            }
+          }
+        }
+      },
+      "Outputs": {}
+    },
+    "configValidationMode": "warn",
+    "serviceFilename": "serverless.ts",
+    "initialServerlessConfig": {
+      "service": "collections-ai-mvp",
+      "frameworkVersion": "3",
+      "plugins": {
+        "$ref": "$[\"service\"][\"plugins\"]"
+      },
+      "provider": {
+        "$ref": "$[\"service\"][\"provider\"]"
+      },
+      "functions": {
+        "$ref": "$[\"service\"][\"functions\"]"
+      },
+      "custom": {
+        "$ref": "$[\"service\"][\"custom\"]"
+      },
+      "resources": {
+        "$ref": "$[\"service\"][\"resources\"]"
+      }
+    },
+    "layers": {},
+    "isDashboardMonitoringPreconfigured": false
+  },
+  "package": {
+    "artifactDirectoryName": "serverless/collections-ai-mvp/dev/1768182060583-2026-01-12T01:41:00.583Z",
+    "artifact": "collections-ai-mvp.zip"
+  }
+}

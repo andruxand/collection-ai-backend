@@ -17,31 +17,46 @@ This guide explains how to configure **WhatsApp Cloud API** to send inbound mess
 - A WhatsApp Business Account (WABA) and a phone number connected to Cloud API.
 
 ### Infrastructure
-- AWS account with permissions for:
-  - Lambda, API Gateway (HTTP API)
-  - DynamoDB
-  - SQS
-  - Secrets Manager
-  - CloudWatch Logs
-- A deployed stage of this backend (dev/staging) that exposes:
-  - `ANY /webhooks/whatsapp` (see `serverless.ts`)
+- AWS account con permisos para:
+   - Lambda, API Gateway (HTTP API)
+   - DynamoDB
+   - SQS
+   - Secrets Manager
+   - CloudWatch Logs
+- Un stage desplegado de este backend (dev/staging) que exponga:
+   - `ANY /webhooks/whatsapp` (ver `serverless.ts`)
+
+Para un entorno de pruebas rápido en `dev`:
+```bash
+npm i
+npm run deploy:dev
+npm run onboard:whatsapp-dev
+```
 
 ## Costs and key platform rules
 
 - WhatsApp Business Platform pricing depends on message category/market and can change over time. Always confirm current pricing before launch.
 - WhatsApp has messaging constraints (e.g., templates may be required outside the customer-service window). Validate policy and template requirements during MVP.
 
-## Configure secrets (AWS)
+## Configure secrets y parámetros (AWS)
 
-This repo expects the Meta app secret in **Secrets Manager** and referenced by ARN.
+Este backend espera:
 
-1. Create a secret in Secrets Manager with the Meta **App Secret** as the secret string.
-2. Store the ARN in the environment variable:
-   - `META_APP_SECRET_ARN`
+- **Meta App Secret** en Secrets Manager (referenciado por ARN):
+   1. Crea un secreto en Secrets Manager con el **App Secret** de tu app de Meta como string.
+   2. Guarda el ARN (lo usarás en `serverless.ts` o en SSM, según tu estrategia).
 
-Other key env vars:
-- `WHATSAPP_VERIFY_TOKEN` (any random string you set in Meta webhook settings)
-- `TABLE_NAME`
+- **Access token de WhatsApp Cloud API** en Secrets Manager:
+   - Crea un secreto con el access token actual.
+   - Usa el ARN en la configuración de canal del tenant (`channels.whatsapp.accessTokenSecretId`).
+
+- **Parámetros SSM por stage** (ejemplo para `service=collections-ai-mvp`, `stage=dev`):
+   - `/collections-ai-mvp/dev/metaVerifyToken`
+   - `/collections-ai-mvp/dev/metaAppSecretArn`
+   - `/collections-ai-mvp/dev/adminApiKey`
+
+Variables de entorno relevantes para runtime (inyectadas por `serverless.ts`):
+- `TABLE_NAME` (derivada como `${service}-${stage}-core`)
 - `INBOUND_QUEUE_URL`
 
 ## Configure the webhook in Meta

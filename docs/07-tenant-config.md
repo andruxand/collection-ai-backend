@@ -19,8 +19,8 @@ Body:
   "tenantId": "tenant-demo",
   "name": "Demo Tenant",
   "channels": {
-    "whatsapp": { "phoneNumberId": "...", "accessTokenSecretId": "..." },
-    "telegram": { "botTokenSecretId": "..." }
+    "whatsapp": { "phoneNumberId": "...", "accessTokenSecretId": "<ARN de Secrets Manager>" },
+    "telegram": { "botTokenSecretId": "<ARN de Secrets Manager>" }
   },
   "policy": {
     "contactPolicy": { "...": "..." },
@@ -77,7 +77,11 @@ Configure email notifications:
 
 
 ## Seeding client API keys (no UI)
-Use:
+
+El `API_KEY_PEPPER` es un valor global por stage que el backend usa para hashear y validar API keys de cliente. En AWS lo guardas como **SecureString** en SSM (por ejemplo `/collections-ai-mvp/dev/apiKeyPepper`) y `serverless.ts` lo inyecta como `process.env.API_KEY_PEPPER` usando `${ssm:/...}`.
+
+Para un seed local/manual puedes exportar el valor real (no el ARN) y ejecutar:
+
 ```
 API_KEY_PEPPER=... TABLE_NAME=... AWS_REGION=... node scripts/seedTenant.js configs/tenant-demo.json --issue-client-key --label "Prod integration"
 ```

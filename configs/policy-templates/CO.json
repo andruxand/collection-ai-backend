@@ -1,4 +1,5 @@
 {
+  "countryCode": "CO",
   "contactPolicy": {
     "timezone": "America/Bogota",
     "maxContactsPerDay": 1,
@@ -15,18 +16,5 @@
     "MID": { "maxOutboundPerDay": 1, "maxOutboundPerWeek": 3 },
     "LATE": { "maxOutboundPerDay": 1, "maxOutboundPerWeek": 4 }
   },
-  "cooldowns": { "rejectedOfferDays": 3, "noResponseDays": 2, "brokenPromiseDays": 1 },
-  "offerPolicy": { "ladder": [{ "attempt": 1, "maxDiscountPct": 0 }, { "attempt": 2, "maxDiscountPct": 10 }, { "attempt": 3, "maxDiscountPct": 20 }], "maxInstallments": 6, "minInstallmentCop": 50000 },
-  "auditPolicy": { "enabled": true, "retentionDays": 90 },
-  "exportPolicy": { "enabled": false, "retentionDays": 30 },
-  "notificationPolicy": {
-    "email": {
-      "enabled": true,
-      "fromAddress": "REPLACE_ME_VERIFIED_SES_SENDER@example.com",
-      "toAddresses": ["REPLACE_ME_OPS_QUEUE@example.com"],
-      "subjectPrefix": "[CollectionsAI-CO]",
-      "includeInboundText": true
-    }
-  },
-  "handoffPolicy": { "enabled": true, "stageMin": "MID", "intents": ["DISPUTE", "ANGRY"], "retentionDays": 30, "storeInboundText": true }
+  "cooldowns": { "rejectedOfferDays": 3, "noResponseDays": 2, "brokenPromiseDays": 1 }
 }

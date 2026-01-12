@@ -1,5 +1,3 @@
-import type { AWS } from '@serverless/typescript';
-
 const service = 'collections-ai-mvp';
 
 // Use a loose cast because Serverless's TS definitions are strict about
@@ -12,8 +10,14 @@ const config = {
     name: 'aws',
     profile: 'adrian-personal',
     runtime: 'nodejs22.x',
+    versionFunctions: false,
     region: "${opt:region, 'us-east-1'}",
     stage: "${opt:stage, 'dev'}",
+    deploymentBucket: {
+      // Bucket único para artefactos de despliegue de Serverless
+      name: '${self:service}-${aws:region}-deployments',
+      serverSideEncryption: 'AES256',
+    },
     logRetentionInDays: 14,
     httpApi: {
       cors: true,
@@ -29,7 +33,6 @@ const config = {
     environment: {
       STAGE: '${self:provider.stage}',
       PLATFORM_USER_POOL_ID: { Ref: 'PlatformUserPool' } as any,
-      API_KEY_PEPPER: '${env:API_KEY_PEPPER}',
       IDEMPOTENCY_TTL_SECONDS: "${env:IDEMPOTENCY_TTL_SECONDS, '604800'}",
       OUTBOUND_TICK_DEBTOR_LIMIT: "${env:OUTBOUND_TICK_DEBTOR_LIMIT, '50'}",
       OUTBOUND_TICK_TENANT_LIMIT: "${env:OUTBOUND_TICK_TENANT_LIMIT, '25'}",
@@ -40,15 +43,23 @@ const config = {
       INBOUND_QUEUE_URL: { Ref: 'InboundQueue' } as any,
       INBOUND_QUEUE_ARN: { 'Fn::GetAtt': ['InboundQueue', 'Arn'] } as any,
 
-      META_VERIFY_TOKEN: '${ssm:/${self:service}/${self:provider.stage}/metaVerifyToken}',
-      META_APP_SECRET_ARN: '${ssm:/${self:service}/${self:provider.stage}/metaAppSecretArn}',
+      // Whasapp webhook secrets
+      // META_VERIFY_TOKEN: '${ssm:/${self:service}/${self:provider.stage}/metaVerifyToken}',
+      // META_APP_SECRET_ARN: '${ssm:/${self:service}/${self:provider.stage}/metaAppSecretArn}',
+
+      // Telegram webhook secret
+      TELEGRAM_WEBHOOK_SECRET_TOKEN:
+        '${ssm:/${self:service}/${self:provider.stage}/telegramWebhookSecretToken}',
+
       ADMIN_API_KEY: '${ssm:/${self:service}/${self:provider.stage}/adminApiKey}',
+      API_KEY_PEPPER: '${ssm:/${self:service}/${self:provider.stage}/apiKeyPepper}',
       TENANT_DEFAULT_ID: 'tenant-demo',
       HANDOFF_QUEUE_URL: { Ref: 'HandoffQueue' } as any,
 
       // Optional:
-      // LLM_PROVIDER_JSON: '{"provider":"openai","model":"gpt-4o-mini"}',
-      // LLM_OPENAI_KEY_SECRET_ID: 'arn:aws:secretsmanager:REPLACE_ME:secret:openai-key',
+      LLM_PROVIDER_JSON: '{"provider":"openai","model":"gpt-5-nano"}',
+      LLM_OPENAI_KEY_SECRET_ID:
+        'arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE',
     },
     iam: {
       role: {
@@ -111,6 +122,16 @@ const config = {
             Effect: 'Allow',
             Action: ['secretsmanager:GetSecretValue'],
             Resource: '*',
+          },
+          {
+            Effect: 'Allow',
+            Action: ['s3:ListBucket'],
+            Resource: 'arn:aws:s3:::collections-ai-mvp-293262438125-us-east-1-deployments',
+          },
+          {
+            Effect: 'Allow',
+            Action: ['s3:GetObject', 's3:PutObject'],
+            Resource: 'arn:aws:s3:::collections-ai-mvp-293262438125-us-east-1-deployments/*',
           },
         ],
       },
@@ -402,6 +423,16 @@ const config = {
           MessageRetentionPeriod: 345600,
         },
       },
+      HandoffQueue: {
+        Type: 'AWS::SQS::Queue',
+        Properties: {
+          QueueName: '${self:service}-${self:provider.stage}-handoff.fifo',
+          FifoQueue: true,
+          ContentBasedDeduplication: true,
+          VisibilityTimeout: 60,
+          MessageRetentionPeriod: 345600,
+        },
+      },
       CoreTable: {
         Type: 'AWS::DynamoDB::Table',
         Properties: {
@@ -435,4 +466,4 @@ const config = {
   },
 };
 
-module.exports = config as unknown as AWS;
+module.exports = config;

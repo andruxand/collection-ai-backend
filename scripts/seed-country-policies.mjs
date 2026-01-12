@@ -1,18 +1,23 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 
-const TABLE_NAME = process.env.TABLE_NAME;
-if (!TABLE_NAME) {
-  console.error("Missing TABLE_NAME env var (DynamoDB table name).");
-  process.exit(1);
-}
+const require = createRequire(import.meta.url);
+const { getTableName, getRegion } = require("./config.js");
 
-const dir = process.argv[2] || "config/country-policies";
+const TABLE_NAME = getTableName();
+const REGION = getRegion();
+
+// Default to shared policy templates under configs/policy-templates.
+// You can override via CLI arg: `node scripts/seed-country-policies.mjs path/to/dir`.
+const dir = process.argv[2] || "configs/policy-templates";
 const abs = path.resolve(process.cwd(), dir);
 
-const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
+console.log(`Seeding country policies into table ${TABLE_NAME} in region ${REGION}`);
+
+const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }), {
   marshallOptions: { removeUndefinedValues: true }
 });
 

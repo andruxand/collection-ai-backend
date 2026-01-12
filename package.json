@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "build": "serverless package",
-    "deploy:dev": "serverless deploy --stage dev --verbose",
+    "deploy:dev": "cross-env serverless deploy --stage dev --aws-profile=$AWS_PROFILE --verbose",
+    "deploy:prod": "cross-env serverless deploy --stage prod --aws-profile=$AWS_PROFILE --verbose",
     "remove:dev": "serverless remove --stage dev",
     "lint": "eslint .",
     "lint:fix": "eslint . --ext .ts --fix",
@@ -15,7 +16,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "seed:country-policies": "node scripts/seed-country-policies.mjs",
     "seed:whatsapp-mappings": "node scripts/seed-whatsapp-mappings.mjs",
-    "seed:telegram-bot-mappings": "node scripts/seed-telegram-bot-mappings.mjs"
+    "seed:telegram-bot-mappings": "node scripts/seed-telegram-bot-mappings.mjs",
+    "onboard:telegram-dev": "cross-env STAGE=dev AWS_REGION=us-east-1 AWS_PROFILE=$AWS_PROFILE node scripts/onboard-stage.mjs --telegram",
+    "onboard:whatsapp-dev": "cross-env STAGE=dev AWS_REGION=us-east-1 AWS_PROFILE=$AWS_PROFILE node scripts/onboard-stage.mjs --whatsapp"
   },
   "dependencies": {
     "@aws-lambda-powertools/logger": "^2.8.0",
@@ -37,6 +40,7 @@
     "@typescript-eslint/eslint-plugin": "^8.51.0",
     "@typescript-eslint/parser": "^8.51.0",
     "@vitest/coverage-v8": "^2.1.8",
+    "cross-env": "^10.1.0",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^8.10.2",
     "eslint-plugin-import": "^2.32.0",

@@ -1,13 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 
-const TABLE_NAME = process.env.TABLE_NAME;
-if (!TABLE_NAME) {
-  console.error("Missing TABLE_NAME env var (DynamoDB table name).");
-  process.exit(1);
-}
+const require = createRequire(import.meta.url);
+const { getTableName } = require("./config.js");
+
+const TABLE_NAME = getTableName();
 
 const dir = process.argv[2] || "configs/whatsapp-mappings";
 const abs = path.resolve(process.cwd(), dir);

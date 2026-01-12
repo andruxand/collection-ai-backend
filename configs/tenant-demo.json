@@ -7,7 +7,7 @@
       "accessTokenSecretId": "REPLACE_ME"
     },
     "telegram": {
-      "botTokenSecretId": "REPLACE_ME"
+      "botTokenSecretId": "arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE"
     }
   },
   "policy": {
@@ -83,9 +83,9 @@
     "notificationPolicy": {
       "email": {
         "enabled": true,
-        "fromAddress": "REPLACE_ME_VERIFIED_SES_SENDER@example.com",
+        "fromAddress": "adrian.710@hotmail.com",
         "toAddresses": [
-          "REPLACE_ME_OPS_QUEUE@example.com"
+          "andruxand@gmail.com"
         ],
         "subjectPrefix": "[CollectionsAI]",
         "includeInboundText": true

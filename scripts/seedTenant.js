@@ -13,6 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { getTableName } = require('./config');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand } = require('@aws-sdk/lib-dynamodb');
 const {
@@ -91,8 +92,7 @@ async function inviteUser({ userPoolId, email, role, tenantIds, groups }) {
     process.exit(1);
   }
 
-  const tableName = process.env.TABLE_NAME;
-  if (!tableName) throw new Error('Missing TABLE_NAME env var');
+  const tableName = getTableName();
 
   const jsonPath = path.resolve(process.cwd(), file);
   const raw = fs.readFileSync(jsonPath, 'utf8');

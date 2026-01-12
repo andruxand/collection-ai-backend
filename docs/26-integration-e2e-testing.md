@@ -4,8 +4,8 @@ This runbook covers end-to-end testing for WhatsApp and Telegram channels.
 
 ## 1) AWS prerequisites
 
-- DynamoDB table exists and `TABLE_NAME` is set.
-- Inbound SQS queue exists and `INBOUND_QUEUE_URL` is set.
+- DynamoDB table (CoreTable) desplegada para el `STAGE` que vas a usar.
+- Inbound SQS queue existe y `INBOUND_QUEUE_URL` está configurado vía `serverless.ts`.
 - API Gateway HTTP API deployed and publicly reachable.
 - CloudWatch logs enabled (default).
 
@@ -25,11 +25,18 @@ sls deploy --stage dev
 
 Note the API base URL for HTTP API.
 
+For a **quick dev onboarding** you can use:
+
+- Telegram: `npm run onboard:telegram-dev`
+- WhatsApp: `npm run onboard:whatsapp-dev`
+
+Those commands will seed country policies, channel mappings and the demo tenant for `STAGE=dev`.
+
 ## 4) Seed required data
 
 ### 4.1 Country policies (if applicable)
 ```bash
-TABLE_NAME=... npm run seed:country-policies
+STAGE=dev AWS_REGION=us-east-1 npm run seed:country-policies
 ```
 
 ### 4.2 Tenant configs (if applicable)
@@ -37,12 +44,12 @@ Follow `docs/07-tenant-config.md` and `docs/20-demo-accounts.md`.
 
 ### 4.3 WhatsApp tenant routing
 ```bash
-TABLE_NAME=... npm run seed:whatsapp-mappings
+STAGE=dev AWS_REGION=us-east-1 npm run seed:whatsapp-mappings
 ```
 
 ### 4.4 Telegram tenant routing
 ```bash
-TABLE_NAME=... npm run seed:telegram-bot-mappings
+STAGE=dev AWS_REGION=us-east-1 npm run seed:telegram-bot-mappings
 ```
 
 ## 5) WhatsApp tests (manual)
