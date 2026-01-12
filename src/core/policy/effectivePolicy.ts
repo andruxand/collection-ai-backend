@@ -25,13 +25,20 @@ export function buildEffectivePolicy(input: {
 }): TenantPolicy {
   const { countryPolicy, tenantPolicy } = input;
 
-  // Legal baseline: channelsAllowed must be defined at country level.
-  const countryChannels = countryPolicy.contactPolicy.channelsAllowed;
-  const tenantChannels = tenantPolicy.contactPolicy.channelsAllowed;
+  // Legal baseline: channelsAllowed should be defined at country level, but we
+  // tolerate missing data (old policies) by treating it as "no extra restriction".
+  const countryChannels = countryPolicy.contactPolicy.channelsAllowed || {
+    whatsapp: false,
+    telegram: false,
+  };
+  const tenantChannels = tenantPolicy.contactPolicy.channelsAllowed || {
+    whatsapp: false,
+    telegram: false,
+  };
   const effectiveChannelsAllowed = {
     // Tenant can only further restrict; if tenant omite channelsAllowed, se asume "no restricción extra" (true).
-    whatsapp: Boolean(countryChannels.whatsapp) && Boolean(tenantChannels?.whatsapp ?? true),
-    telegram: Boolean(countryChannels.telegram) && Boolean(tenantChannels?.telegram ?? true),
+    whatsapp: Boolean(countryChannels.whatsapp) && Boolean(tenantChannels.whatsapp),
+    telegram: Boolean(countryChannels.telegram) && Boolean(tenantChannels.telegram),
   };
 
   // hours intersection (if tenant is stricter, intersection shrinks window)
@@ -118,11 +125,15 @@ export function validateTenantAgainstCountry(input: {
   const errors: string[] = [];
 
   const tenantAllowed = tenantPolicy.contactPolicy.channelsAllowed;
+  const countryAllowed = countryPolicy.contactPolicy.channelsAllowed || {
+    whatsapp: true,
+    telegram: true,
+  };
   if (tenantAllowed) {
-    if (tenantAllowed.whatsapp && !countryPolicy.contactPolicy.channelsAllowed.whatsapp) {
+    if (tenantAllowed.whatsapp && !countryAllowed.whatsapp) {
       errors.push('Tenant enables WhatsApp but country policy disallows it.');
     }
-    if (tenantAllowed.telegram && !countryPolicy.contactPolicy.channelsAllowed.telegram) {
+    if (tenantAllowed.telegram && !countryAllowed.telegram) {
       errors.push('Tenant enables Telegram but country policy disallows it.');
     }
   }
