@@ -25,13 +25,13 @@ export function buildEffectivePolicy(input: {
 }): TenantPolicy {
   const { countryPolicy, tenantPolicy } = input;
 
+  // Legal baseline: channelsAllowed must be defined at country level.
+  const countryChannels = countryPolicy.contactPolicy.channelsAllowed;
+  const tenantChannels = tenantPolicy.contactPolicy.channelsAllowed;
   const effectiveChannelsAllowed = {
-    whatsapp:
-      Boolean(countryPolicy.contactPolicy.channelsAllowed.whatsapp) &&
-      Boolean(tenantPolicy.contactPolicy.channelsAllowed?.whatsapp ?? true),
-    telegram:
-      Boolean(countryPolicy.contactPolicy.channelsAllowed.telegram) &&
-      Boolean(tenantPolicy.contactPolicy.channelsAllowed?.telegram ?? true),
+    // Tenant can only further restrict; if tenant omite channelsAllowed, se asume "no restricción extra" (true).
+    whatsapp: Boolean(countryChannels.whatsapp) && Boolean(tenantChannels?.whatsapp ?? true),
+    telegram: Boolean(countryChannels.telegram) && Boolean(tenantChannels?.telegram ?? true),
   };
 
   // hours intersection (if tenant is stricter, intersection shrinks window)

@@ -4,6 +4,10 @@
     "timezone": "America/Bogota",
     "maxContactsPerDay": 1,
     "noMultichannelSameWeekAfterDirectContact": true,
+    "channelsAllowed": {
+      "whatsapp": true,
+      "telegram": true
+    },
     "hours": {
       "monFri": { "from": "07:00", "to": "19:00" },
       "sat": { "from": "08:00", "to": "15:00" },

@@ -21,7 +21,8 @@ Registry item (for listing countries without scans):
 - `sk = COUNTRY#<COUNTRY_CODE>`
 
 ## Runtime behavior
-
+> ⚠️ **Nota importante:**
+> La propiedad `channelsAllowed` (por ejemplo, `{ whatsapp: true, telegram: true }`) es **obligatoria** tanto en las políticas de país como en las de tenant. Si falta, el backend puede lanzar errores en tiempo de ejecución. Siempre define explícitamente los canales permitidos en cada política.
 At runtime, the backend builds an **Effective Policy**:
 
 1. Load tenant policy (tenant record)
