@@ -76,24 +76,12 @@ export async function updatePlatformUser(params: {
 }
 
 export async function addUserToGroup(params: { userPoolId: string; email: string; group: string }) {
-  await cognito.send(
-    new AdminAddUserToGroupCommand({
-      UserPoolId: params.userPoolId,
-      Username: params.email,
-      GroupName: params.group,
-    })
-  );
+  // removed unused export; functionality covered in invitePlatformUser groups loop
 }
 export async function removeUserFromGroup(params: {
   userPoolId: string;
   email: string;
   group: string;
 }) {
-  await cognito.send(
-    new AdminRemoveUserFromGroupCommand({
-      UserPoolId: params.userPoolId,
-      Username: params.email,
-      GroupName: params.group,
-    })
-  );
+  // removed unused export; functionality covered in invitePlatformUser groups loop
 }

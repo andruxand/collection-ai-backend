@@ -103,7 +103,11 @@ export async function llmJson<T = unknown>(
       body: JSON.stringify(body),
     });
 
-    if (!resp.ok) throw new Error(`LLM error: ${resp.status}`);
+    if (!resp.ok) {
+      const bodyText = await resp.text();
+      const short = bodyText.length > 1000 ? bodyText.slice(0, 1000) + '... (truncated)' : bodyText;
+      throw new Error(`LLM error: ${resp.status} ${short}`);
+    }
     const data: unknown = await resp.json();
     const text = extractOutputText(data);
     return JSON.parse(text || '{}') as T;
@@ -145,7 +149,11 @@ export async function llmText(prompt: string): Promise<string> {
       }),
     });
 
-    if (!resp.ok) throw new Error(`LLM error: ${resp.status}`);
+    if (!resp.ok) {
+      const bodyText = await resp.text();
+      const short = bodyText.length > 1000 ? bodyText.slice(0, 1000) + '... (truncated)' : bodyText;
+      throw new Error(`LLM error: ${resp.status} ${short}`);
+    }
     const data: unknown = await resp.json();
     return extractOutputText(data);
   }

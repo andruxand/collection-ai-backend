@@ -151,6 +151,88 @@ export type TenantPolicy = {
       tone?: string;
     }>;
   };
+
+  /** Optional: conversation orchestration settings. */
+  conversationPolicy?: {
+    /** ContextPack/v1 is the new structured context pipeline feeding agents. */
+    contextPackV1?: {
+      enabled: boolean;
+      /** Optional cap for lastTurns window (hard cap is applied in code). */
+      defaultLastTurns?: number;
+    };
+
+    /** Feature flags and constraints for the multi-agent orchestration path. */
+    multiAgentOrchestration?: {
+      enabled: boolean;
+      /** Maximum number of attempts for schema repair loops per agent call. */
+      maxRepairAttempts: number;
+      /** Safety limits for conversation flow. */
+      budgets?: {
+        maxNegotiationRounds?: number;
+        maxSlotAsksPerSlot?: number;
+        maxOffTopicRedirects?: number;
+        abuseStrikeLimit?: number;
+      };
+    };
+
+    /** Optional: per-tenant override for CuratedPolicy resolution (governance/version pinning). */
+    curatedPolicy?: {
+      /** If set, forces a specific curated policy version (e.g. 2026-01-18.v1). */
+      versionOverride?: string;
+    };
+
+    /** Controls cost/abuse from inbound message floods. */
+    limits?: {
+      /** If a debtor sends > max per minute, we temporarily block processing. */
+      maxInboundPerMinute?: number;
+      /** How long to block processing when flood is detected. */
+      blockForSecondsOnInboundFlood?: number;
+      /** Hard cap on inbound text length (over = drop). */
+      maxInboundTextChars?: number;
+    };
+  };
+};
+
+export type MultiAgentBudgetsSnapshot = {
+  maxNegotiationRounds: number;
+  maxSlotAsksPerSlot: number;
+  maxOffTopicRedirects: number;
+  abuseStrikeLimit: number;
+  maxRepairAttempts: number;
+  counters: {
+    negotiationRounds: number;
+    offTopicRedirects: number;
+    abuseStrikes: number;
+    repairAttempts: number;
+    slotAsks: Record<string, number>;
+  };
+};
+
+export type MultiAgentMemoryTurn = {
+  role: 'user' | 'assistant';
+  atIso: string;
+  messageId?: string;
+  text?: string;
+};
+
+export type SummaryMemory = {
+  bullets: string[];
+  updatedAtIso: string;
+  updatedAtTurnCount: number;
+};
+
+export type MultiAgentConversationState = {
+  budgets: MultiAgentBudgetsSnapshot;
+  recentTurns: MultiAgentMemoryTurn[];
+  lastTurnId?: string;
+  /** Monotonic counter for turns (increment once per inbound message processed). */
+  turnCount?: number;
+  /** Most recent turnCount when we refreshed summaryMemory. */
+  lastSummaryTurnCount?: number;
+  /** Lightweight, redacted, long-term memory for planning and writing. */
+  summaryMemory?: SummaryMemory;
+  /** Short structured memory to carry across turns (slots, key facts). */
+  workingMemory?: Record<string, unknown>;
 };
 
 export type CountryPolicy = {
@@ -209,6 +291,8 @@ export type ConversationState = {
   lastIntent?: string;
   lastContactAt?: string;
   nextContactAllowedAt?: string;
+  /** Optional: persisted state for the multi-agent orchestration path. */
+  multiAgent?: MultiAgentConversationState;
 };
 
 export type ContactState = {
@@ -226,6 +310,16 @@ export type ContactState = {
 
   // computed cooldown for outbound reminders/campaigns
   nextContactAllowedAt?: string;
+
+  // inbound flood control (cost / abuse protection)
+  inboundMinute?: Record<string, number>; // YYYY-MM-DDTHH:mm (UTC) -> count
+  blockedUntilIso?: string;
+  lastBlockNoticeAt?: string;
+
+  // Case lifecycle
+  caseStatus?: 'OPEN' | 'CLOSED';
+  caseClosedAtIso?: string;
+  caseCloseReason?: string | null;
 
   // Outbound counters (keys are local date/week per tenant timezone)
   outboundDaily?: Record<string, number>; // YYYY-MM-DD -> count
@@ -362,5 +456,3 @@ export type ApiKeyRecord = {
 export type ClientAuthConfig = {
   apiKeys: ApiKeyRecord[];
 };
-
-export type PlatformRole = 'SUPER_ADMIN' | 'TENANT_ADMIN' | 'OPERATOR' | 'CLIENT_ADMIN';

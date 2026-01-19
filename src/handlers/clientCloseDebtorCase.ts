@@ -1,0 +1,43 @@
+import { Logger } from '@aws-lambda-powertools/logger';
+import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
+import { z } from 'zod';
+
+import { putContact } from '../core/store/repos';
+import { requireClientAuth } from './_clientAuth';
+
+const logger = new Logger({ serviceName: 'collections-ai-mvp' });
+
+const BodySchema = z.object({
+  // tenantId derived from x-tenant-id for client API
+  tenantId: z.never().optional(),
+  debtorId: z.string().min(1),
+  reason: z.string().max(400).optional(),
+});
+
+export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+  try {
+    const auth = await requireClientAuth(event);
+
+    const body = event.body ? JSON.parse(event.body) : {};
+    const parsed = BodySchema.safeParse(body);
+    if (!parsed.success) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ message: 'Invalid body', errors: parsed.error.flatten() }),
+      };
+    }
+
+    const nowIso = new Date().toISOString();
+    await putContact(auth.tenantId, parsed.data.debtorId, {
+      caseStatus: 'CLOSED',
+      caseClosedAtIso: nowIso,
+      caseCloseReason: parsed.data.reason ?? null,
+    });
+
+    return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+  } catch (err: unknown) {
+    logger.error('clientCloseDebtorCase error', { err });
+    const statusCode = (err as { statusCode?: number } | undefined)?.statusCode ?? 500;
+    return { statusCode, body: JSON.stringify({ message: 'Internal error' }) };
+  }
+};

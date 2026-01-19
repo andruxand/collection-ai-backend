@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { toHttpError } from '../core/errors';
 import { putPlatformAudit } from '../core/store/platformAudit';
-import { putTenantMeta } from '../core/store/tenantAdmin';
+import { saveTenant } from '../core/store/repos';
 import { mergeTenantPolicy } from '../core/tenant/defaults';
 import type { Tenant, TenantPolicy } from '../core/types';
 import { assertTenantAccess, requirePlatformAuth } from './_platformAuth';
@@ -56,7 +56,7 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       policy,
     };
 
-    await putTenantMeta(tenant);
+    await saveTenant(tenant);
 
     await putPlatformAudit({
       tenantId: tenant.tenantId,
@@ -68,7 +68,7 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       payload: { name: tenant.name, channels: tenant.channels },
     });
 
-    return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+    return { statusCode: 200, body: JSON.stringify({ ok: true, tenantId: tenant.tenantId }) };
   } catch (err: unknown) {
     const e = toHttpError(err);
     logger.error('platformUpsertTenant error', { err: e });

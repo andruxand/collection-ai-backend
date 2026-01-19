@@ -88,6 +88,11 @@ Body:
 ## Documentation
 See `docs/` folder. Start with `docs/00-overview.md`.
 
+V2 Conversación (fluidez con guardrails mínimos):
+- Guía: `docs/AI_V2.md`
+- Flag runtime: `CONV_V2_ENABLED` (default `'true'` en serverless)
+- Tests unitarios siguen V1 (el flag no está en `process.env` al correr `vitest`).
+
 
 ## Testing
 See `docs/TESTING.md`.

@@ -19,6 +19,21 @@ export function nextBestAction(input: {
   const state = conversation.state ?? 'WELCOME';
   const lastIntent = conversation.lastIntent;
 
+  // If the NLU couldn't classify the intent but extracted a useful amount/date,
+  // treat it as promise info (common for free-form messages like "tengo 20 mil" / "pago el martes").
+  if (
+    nlu.intent === 'UNKNOWN' &&
+    (typeof nlu.entities.amountCop === 'number' || typeof nlu.entities.dateIso === 'string')
+  ) {
+    return nextBestAction({
+      tenantPolicy,
+      debtor: input.debtor,
+      conversation,
+      offers,
+      nlu: { ...nlu, intent: 'PROMISE_PAYMENT', confidence: Math.max(nlu.confidence, 0.6) },
+    });
+  }
+
   // Short confirmations / denials should be interpreted in context.
   // This reduces the chance of falling back to menus when the user answers "sí/no".
   if (nlu.intent === 'AFFIRM') {
@@ -35,7 +50,12 @@ export function nextBestAction(input: {
       const hasDate = typeof (slots.promiseDate as unknown) === 'string';
       const hasAmount = typeof (slots.promiseAmount as unknown) === 'number';
       if (!hasDate)
-        return { action: 'ASK_SLOT', slot: 'promiseDate', nextState: 'NEGOTIATION', slotsUpdate: {} };
+        return {
+          action: 'ASK_SLOT',
+          slot: 'promiseDate',
+          nextState: 'NEGOTIATION',
+          slotsUpdate: {},
+        };
       if (!hasAmount)
         return {
           action: 'ASK_SLOT',
@@ -211,6 +231,7 @@ export function nextBestAction(input: {
   if (
     (state === 'WELCOME' && (conversation.attemptCount ?? 0) <= 1) ||
     state === 'OFFER_MENU' ||
+    state === 'NEGOTIATION' ||
     state === 'DETAIL' ||
     state === 'PAYMENT'
   ) {

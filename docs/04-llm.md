@@ -7,6 +7,13 @@ We use an LLM for:
 
 This keeps the system deterministic and auditable while still conversational.
 
+## Current Default: ConversationAgentV2
+The backend now defaults to the simplified V2 conversational path focused on micro-planning + a single Writer pass with lightweight guards. See the detailed architecture in [collections-ai-backend/docs/AI_V2.md](collections-ai-backend/docs/AI_V2.md).
+
+- Env flag: `CONV_V2_ENABLED` controls the V2 path. Deploy environments default to `true`; unit tests keep V1 unless explicitly set to `true`.
+- Deterministic governors (policy, offer engine, safety filter) remain in effect.
+- Minimal templates are used only for predictable cases (e.g., `PAY_NOW`, info requests, off-topic close).
+
 ## Important design principles
 - The LLM **does not** decide:
   - whether to contact (policy does)
@@ -29,6 +36,43 @@ Operational control:
 
 Strategy control (per tenant):
 - `tenant.policy.strategyPolicy` can set the objective (collect now vs negotiate vs nudge, etc.) and tone rules based on `daysPastDue`/`totalDueCop`.
+
+## Legacy (V1) Multi-Agent Orchestration (Classifier → Planner → Writer → Verifier)
+Note: As of V2, this path is disabled by default. Use it only for canary or research scenarios. See [collections-ai-backend/docs/AI_V2.md](collections-ai-backend/docs/AI_V2.md) for the recommended default path.
+
+In addition to the DM, the backend includes a **multi-agent workflow** designed for more human-like, context-aware conversations while preserving governance:
+
+- **ClassifierAgent**: classifies the conversation mode (NEGOTIATION / DISPUTE / WRONG_PERSON / etc.) and detects ambiguity.
+- **PlannerAgent**: chooses a constrained action (offer options, ask slot, confirm, template, etc.) under strict JSON schema.
+- **WriterAgent**: drafts the message for the chosen action.
+- **VerifierAgent**: validates compliance/safety and triggers repair when needed.
+
+Important: this workflow is feature-flagged and may be **disabled in a given environment/tenant**.
+
+### When it runs
+The multi-agent path runs only when ALL of these are true:
+- Environment: `CONVERSATION_MULTI_AGENT_ENABLED=true`
+- Tenant policy: `tenant.policy.conversationPolicy.multiAgentOrchestration.enabled=true`
+- LLM provider configured: `LLM_PROVIDER_JSON` exists and `provider != "mock"`
+
+Optional (recommended) context pipeline:
+- Environment: `CONVERSATION_CONTEXT_PACK_V1_ENABLED=true`
+- Tenant policy: `tenant.policy.conversationPolicy.contextPackV1.enabled=true`
+
+If any condition is not met, the orchestrator falls back to the deterministic/DM path.
+
+In V2-default environments, the system takes the V2 path first when `CONV_V2_ENABLED=true`, bypassing the multi-agent orchestration.
+
+### Why we still have regex/if-else at all
+Regex/if-else are intentionally kept **only** for:
+- Safety/compliance-critical, immediate behaviors (e.g. opt-out)
+- Fast deterministic shortcuts (e.g. menu numbers)
+- Fallback when the LLM is unavailable/misconfigured
+
+They are NOT the scalable primary approach for natural language understanding. The scalable path is:
+- LLM structured outputs (NLU/Planner), plus
+- deterministic governors (policy / offer engine / safety filter), plus
+- audit + budgets to prevent loops.
 
 ## NLU (state-aware)
 NLU receives the **current conversation state** (e.g. `WELCOME`, `OFFER_MENU`, `DETAIL`, `PAYMENT`) to improve accuracy and reduce menu loops.
@@ -60,6 +104,8 @@ Guardrails:
 - `src/core/llm/prompts.ts` — prompt templates
 - `src/core/llm/safetyFilter.ts` — final guardrails
 - `src/core/dialogue/*` — Dialogue Manager (prompt + schema + runner)
+- `src/core/conversation/ConversationAgentV2.ts` — V2 micro-plan + single Writer pass with lightweight guard
+- `src/core/conversation/tools/slots.ts` — slot validators for `amountCop`, `dateIso`, `paymentMethod`
 
 ## Prompting guidance
 - Use **strict JSON schema** for NLU

@@ -27,6 +27,10 @@ export function policyCheck(input: {
 }) {
   const { now, tenantPolicy, debtor, contact, channel, direction } = input;
 
+  if (direction === 'outbound' && contact.caseStatus === 'CLOSED') {
+    return { allowed: false, reason: 'CASE_CLOSED' as const };
+  }
+
   if (contact.optedOut) return { allowed: false, reason: 'OPTED_OUT' as const };
 
   // Channel gate (country/tenant effective policy): block outbound if channel is disallowed.

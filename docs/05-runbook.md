@@ -111,6 +111,26 @@ Set envs (in `serverless.ts` or mapped from SSM):
 4) Inspect DynamoDB:
    - DEBTOR#, CONV#, CONTACT#, AUDIT#
 
+## Cost control / abuse protection (inbound)
+
+The largest cost driver is often LLM calls triggered by inbound messages.
+
+To prevent an attacker (or a noisy user) from generating excessive infra/LLM costs, the orchestrator applies:
+- **Inbound text length cap** (drops oversized messages)
+- **Per-debtor inbound rate limit** (temporary block window)
+
+Tenant-configurable knobs (recommended defaults are applied at runtime):
+- `policy.conversationPolicy.limits.maxInboundPerMinute`
+- `policy.conversationPolicy.limits.blockForSecondsOnInboundFlood`
+- `policy.conversationPolicy.limits.maxInboundTextChars`
+
+Where to configure:
+- Platform: `POST /platform/tenant` (update policy)
+- Admin: `POST /admin/tenant` (update policy)
+
+Operational note:
+- During a block window, inbound messages may still appear in logs/audit, but outbound processing is intentionally skipped.
+
 ## Troubleshooting
 - Webhook not verifying:
   - check `META_VERIFY_TOKEN` matches Meta configuration
@@ -119,6 +139,46 @@ Set envs (in `serverless.ts` or mapped from SSM):
 - LLM errors:
   - missing `LLM_OPENAI_KEY_SECRET_ID`
   - secret access denied (IAM)
+
+## Observabilidad (A/B rerank)
+
+Para mejorar calidad sin aumentar costo siempre, el pipeline puede activar **A/B generation + reranking** solo en ciertos casos.
+
+### Cuándo se activa
+- `classifier.confidence < 0.70`
+- flags: `ambiguousAmount` o `ambiguousDate` o `contradiction`
+- `negotiationRounds >= 2`
+- modo: `DISPUTE` o `ABUSE_DEESCALATION`
+
+### Qué guarda en auditoría
+- Siempre: `abRerankUsed: boolean` en el payload del turno.
+- Cuando `auditPolicy.storeDecisionPayloads = true`:
+  - `abRerank`: incluye `selectedVariant`, `scores` (si hubo evaluador), `variantA/B` (si aplica) y si se usó fallback.
+
+### Métrica sugerida: `ab_rerank_rate`
+Definición:
+$$ab\_rerank\_rate = \frac{\#turnos\ con\ abRerankUsed=true}{\#turnos\ totales}$$
+
+Uso práctico:
+- Útil para monitorear impacto de costo/latencia (debería ser bajo/estable).
+- Si sube abruptamente, revisa calidad del clasificador (baja confianza) o flags de ambigüedad/contradicción.
+
+## Observabilidad (Templates determinísticas)
+
+Para reducir costo/latencia en casos predecibles, el pipeline puede responder con **plantillas determinísticas** (sin Writer LLM) cuando el plan es `INFORM_TEMPLATE`.
+
+### Qué guarda en auditoría
+- Siempre: `templateUsed: boolean` en el payload del turno.
+- Cuando `auditPolicy.storeDecisionPayloads = true`:
+  - `template`: incluye `templateId` y `varsUsed` (solo variables allowlisted realmente utilizadas).
+
+### Métrica sugerida: `template_response_rate`
+Definición:
+$$template\_response\_rate = \frac{\#turnos\ con\ templateUsed=true}{\#turnos\ totales}$$
+
+Uso práctico:
+- Si baja demasiado: el planner está evitando plantillas (p.ej. por ambigüedad) o no está seleccionándolas.
+- Si sube demasiado: valida que no se estén usando plantillas en casos que requieren matiz (negociación avanzada/ambigüedad).
 
 
 ## Seed tenant

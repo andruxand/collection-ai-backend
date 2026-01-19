@@ -123,6 +123,29 @@ export const DEFAULT_TENANT_POLICY: TenantPolicy = {
       },
     ],
   },
+
+  conversationPolicy: {
+    contextPackV1: {
+      enabled: false,
+      defaultLastTurns: 8,
+    },
+    multiAgentOrchestration: {
+      enabled: false,
+      maxRepairAttempts: 2,
+      budgets: {
+        maxNegotiationRounds: 6,
+        maxSlotAsksPerSlot: 2,
+        maxOffTopicRedirects: 2,
+        abuseStrikeLimit: 3,
+      },
+    },
+
+    limits: {
+      maxInboundPerMinute: 6,
+      blockForSecondsOnInboundFlood: 300,
+      maxInboundTextChars: 800,
+    },
+  },
 };
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {

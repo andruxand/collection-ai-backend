@@ -14,6 +14,7 @@ Non-negotiables:
 
 Start here (in order):
 1) `docs/AI_IMPLEMENTATION_PLAN.md`
+2) `docs/AI_V2.md` (arquitectura de conversación V2, por defecto)
 2) `src/handlers/orchestrator.ts`
 3) `src/core/policy/policyCheck.ts`
 4) `src/core/nba/nextBestAction.ts`
@@ -31,6 +32,7 @@ DoD:
 - `docs/20-demo-accounts.md` (seed demo users/keys)
 
 ## Backend reference
+- `docs/AI_V2.md` (flujo conversacional V2, flag `CONV_V2_ENABLED`)
 - `docs/14-auth-model.md`
 - `docs/07-tenant-config.md`
 - `docs/18-country-policy.md`

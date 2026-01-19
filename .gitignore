@@ -6,6 +6,10 @@ cloudformation-template-*.json
 serverless-state.json
 cloudformation-template-update-stack.json
 
+# Refuerzos para ignorar artefactos en subcarpetas
+**/.serverless/
+**/cloudformation-template-*.json
+
 # General build/deploy outputs
 *.zip
 dist/

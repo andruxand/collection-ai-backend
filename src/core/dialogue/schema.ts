@@ -155,11 +155,12 @@ export const DIALOGUE_JSON_SCHEMA = {
         entities: {
           type: 'object',
           properties: {
-            amountCop: { type: 'integer' },
-            dateIso: { type: 'string' },
-            paymentMethod: { type: 'string', enum: ['PSE', 'CARD', 'TRANSFER', 'CASH'] },
-            offerIndex: { type: 'integer' },
+            amountCop: { type: ['integer', 'null'] },
+            dateIso: { type: ['string', 'null'] },
+            paymentMethod: { type: ['string', 'null'], enum: ['PSE', 'CARD', 'TRANSFER', 'CASH'] },
+            offerIndex: { type: ['integer', 'null'] },
           },
+          required: ['amountCop', 'dateIso', 'paymentMethod', 'offerIndex'],
           additionalProperties: false,
         },
         confidence: { type: 'number' },

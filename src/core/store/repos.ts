@@ -267,6 +267,34 @@ export async function resolveDebtor(
   return placeholder;
 }
 
+export async function resolveDebtorIfExists(
+  tenantId: string,
+  inbound: NormalizedInboundEvent
+): Promise<DebtorSnapshot | undefined> {
+  // Strict resolver: only returns an existing, pre-enrolled debtor.
+  // It does NOT create placeholder debtors.
+  let debtorId: string | undefined;
+
+  if (inbound.debtorRef.phoneE164) {
+    debtorId = await lookupDebtorIdByPhone(tenantId, inbound.debtorRef.phoneE164);
+  } else if (inbound.debtorRef.telegramUserId) {
+    debtorId = await lookupDebtorIdByTelegram(tenantId, inbound.debtorRef.telegramUserId);
+  } else {
+    return undefined;
+  }
+
+  if (!debtorId) return undefined;
+
+  const res = await ddb.send(
+    new GetCommand({
+      TableName: TABLE_NAME,
+      Key: { pk: PK(tenantId), sk: `DEBTOR#${debtorId}` },
+    })
+  );
+
+  return res.Item as DebtorSnapshot | undefined;
+}
+
 export async function getConversation(
   tenantId: string,
   debtorId: string,
@@ -854,6 +882,8 @@ export async function putAudit(params: {
   debtorId: string;
   channel: 'whatsapp' | 'telegram';
   direction: 'inbound' | 'outbound';
+  /** Which decision workflow produced this message (debug/observability). */
+  decisionPath?: 'multi-agent' | 'dialogue-manager' | 'deterministic';
   messageId: string;
   atIso: string;
   phoneE164?: string;
@@ -878,6 +908,7 @@ export async function putAudit(params: {
         debtorId: params.debtorId,
         channel: params.channel,
         direction: params.direction,
+        decisionPath: params.decisionPath,
         messageId: params.messageId,
         atIso: params.atIso,
         phoneHash,
@@ -892,6 +923,47 @@ export async function putAudit(params: {
       },
     })
   );
+}
+
+export async function putConversationTurnAudit(params: {
+  tenantId: string;
+  debtorId: string;
+  channel: 'whatsapp' | 'telegram';
+  messageId: string;
+  atIso: string;
+  turnId: string;
+  /** Arbitrary structured payload for the turn (agent IO, budgets, snapshots, etc.). */
+  payload: Record<string, unknown>;
+  ttl?: number; // epoch seconds
+}) {
+  const sk = `TURN#${params.atIso}#${params.turnId}#${params.messageId}`;
+  try {
+    await ddb.send(
+      new PutCommand({
+        TableName: TABLE_NAME,
+        Item: {
+          pk: PK(params.tenantId),
+          sk,
+          tenantId: params.tenantId,
+          debtorId: params.debtorId,
+          channel: params.channel,
+          messageId: params.messageId,
+          atIso: params.atIso,
+          turnId: params.turnId,
+          payload: params.payload,
+          ttl: params.ttl,
+        },
+        ConditionExpression: 'attribute_not_exists(sk)',
+      })
+    );
+  } catch (err: unknown) {
+    // Idempotency: if the turn audit item already exists, do not overwrite it.
+    if (typeof err === 'object' && err && 'name' in err) {
+      const name = (err as { name?: unknown }).name;
+      if (name === 'ConditionalCheckFailedException') return;
+    }
+    throw err;
+  }
 }
 
 // ------------------------

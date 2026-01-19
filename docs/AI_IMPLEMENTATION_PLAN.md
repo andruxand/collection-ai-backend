@@ -203,8 +203,8 @@ LLM should:
 
 ### PR6 — Evals harness (dataset-driven)
 - Create:
-  - `tests/conversations/cases.es-CO.json`
-  - `tests/conversations/e2eConversation.test.ts`
+  - `tests/conversation/cases.es-CO.json`
+  - `tests/conversation/e2eConversation.test.ts`
 - Enforce:
   - for each case expected NLU + expected plan action
 

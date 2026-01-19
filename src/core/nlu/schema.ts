@@ -20,14 +20,17 @@ export const NluSchema = z.object({
   ]),
   entities: z
     .object({
-      amountCop: z.number().int().positive().optional(),
+      // OpenAI strict output schemas require presence; allow null when unknown.
+      amountCop: z.number().int().positive().nullable().optional(),
       dateIso: z
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .nullable()
         .optional(),
-      paymentMethod: z.enum(['PSE', 'CARD', 'TRANSFER', 'CASH']).optional(),
-      offerIndex: z.number().int().positive().optional(),
+      paymentMethod: z.enum(['PSE', 'CARD', 'TRANSFER', 'CASH']).nullable().optional(),
+      offerIndex: z.number().int().positive().nullable().optional(),
     })
+    .strict()
     .default({}),
   confidence: z.number().min(0).max(1).default(0.5),
   topicShift: z.boolean().default(false),
@@ -59,11 +62,12 @@ export const NLU_JSON_SCHEMA = {
     entities: {
       type: 'object',
       properties: {
-        amountCop: { type: 'integer' },
-        dateIso: { type: 'string' },
-        paymentMethod: { type: 'string', enum: ['PSE', 'CARD', 'TRANSFER', 'CASH'] },
-        offerIndex: { type: 'integer' },
+        amountCop: { type: ['integer', 'null'] },
+        dateIso: { type: ['string', 'null'] },
+        paymentMethod: { type: ['string', 'null'], enum: ['PSE', 'CARD', 'TRANSFER', 'CASH'] },
+        offerIndex: { type: ['integer', 'null'] },
       },
+      required: ['amountCop', 'dateIso', 'paymentMethod', 'offerIndex'],
       additionalProperties: false,
     },
     confidence: { type: 'number' },

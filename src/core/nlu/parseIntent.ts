@@ -1,3 +1,5 @@
+import { DateTime } from 'luxon';
+
 import { llmJson } from '../llm/llmClient';
 import { NLU_PROMPT } from '../llm/prompts';
 import type { ConversationState, NluResult } from '../types';
@@ -11,8 +13,44 @@ function normalizeCopAmount(raw: string): number | undefined {
   return n;
 }
 
+function extractAmountCop(text: string): number | undefined {
+  const t = text.toLowerCase().trim();
+
+  // Common colloquialisms: "20 mil", "20mil", "20k", "20.000", "20 000"... etc.
+  // Order matters: prefer explicit multipliers over plain numbers.
+  const withMultiplier = t.match(
+    /\b(\d{1,3}(?:[\.\s]\d{3})+|\d+(?:[\.,]\d+)?)\s*(mil|k|m|mill[oó]n(?:es)?)\b/
+  );
+  if (withMultiplier) {
+    const rawNumber = withMultiplier[1].replace(/\s/g, '');
+    const base = Number(rawNumber.replace(/\./g, '').replace(/,/g, '.'));
+    if (!Number.isFinite(base) || base <= 0) return undefined;
+    const mult = withMultiplier[2];
+    const factor =
+      mult === 'mil' || mult === 'k'
+        ? 1_000
+        : mult === 'm' || mult.startsWith('mill')
+        ? 1_000_000
+        : 1;
+    const value = Math.round(base * factor);
+    return value > 0 ? value : undefined;
+  }
+
+  const amountMatch = t.match(/\$?\s*(\d{1,3}(?:[\.\s]\d{3})+|\d{4,})\s*(?:cop)?\b/);
+  if (amountMatch?.[1]) return normalizeCopAmount(amountMatch[1]);
+  return undefined;
+}
+
+function nextWeekdayDateIso(params: { now: DateTime; weekday: number }): string {
+  // Luxon weekday: 1=Mon ... 7=Sun
+  const delta = (params.weekday - params.now.weekday + 7) % 7;
+  const daysToAdd = delta === 0 ? 7 : delta;
+  return params.now.plus({ days: daysToAdd }).toISODate()!;
+}
+
 function extractDateIso(text: string): string | undefined {
   const t = text.trim();
+  const lower = t.toLowerCase();
 
   const iso = t.match(/\b(\d{4}-\d{2}-\d{2})\b/);
   if (iso?.[1]) return iso[1];
@@ -25,14 +63,37 @@ function extractDateIso(text: string): string | undefined {
     return `${yyyy}-${mm}-${dd}`;
   }
 
+  // Relative dates (Spanish)
+  const now = DateTime.now().setZone('America/Bogota');
+  if (/\bhoy\b/.test(lower)) return now.toISODate()!;
+  if (/\bma[nñ]ana\b/.test(lower)) return now.plus({ days: 1 }).toISODate()!;
+
+  // Weekdays (Spanish)
+  const weekdayMap: Record<string, number> = {
+    lunes: 1,
+    martes: 2,
+    miercoles: 3,
+    miércoles: 3,
+    jueves: 4,
+    viernes: 5,
+    sabado: 6,
+    sábado: 6,
+    domingo: 7,
+  };
+
+  const wd = lower.match(/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/);
+  if (wd?.[1]) {
+    const weekday = weekdayMap[wd[1]];
+    if (weekday) return nextWeekdayDateIso({ now, weekday });
+  }
+
   return undefined;
 }
 
 function extractEntities(text: string): NluResult['entities'] {
   const t = text.toLowerCase();
 
-  const amountMatch = t.match(/\$?\s*(\d{1,3}(?:[\.\s]\d{3})+|\d{4,})\s*(?:cop)?\b/);
-  const amountCop = amountMatch?.[1] ? normalizeCopAmount(amountMatch[1]) : undefined;
+  const amountCop = extractAmountCop(text);
 
   const dateIso = extractDateIso(text);
 
@@ -119,11 +180,28 @@ function deterministicMenuIntent(input: {
     };
   }
 
+  // Natural Spanish promise patterns (weekday / "esta semana"), even without ISO date
+  if (
+    /(pago|pagar)\s+el\s+(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/.test(t)
+  ) {
+    return {
+      intent: 'PROMISE_PAYMENT',
+      entities: extractEntities(text),
+      confidence: 0.78,
+      topicShift: false,
+    };
+  }
+
   // Date-only or amount-only in negotiation context: treat as promise info
   if ((conversation?.state ?? '') === 'NEGOTIATION') {
     const ent = extractEntities(text);
     if (ent.dateIso || ent.amountCop) {
       return { intent: 'PROMISE_PAYMENT', entities: ent, confidence: 0.7, topicShift: false };
+    }
+
+    // If the user gives a time window like "esta semana", we still want to keep the promise flow.
+    if (/\b(esta\s+semana|la\s+otra\s+semana|pr[oó]xima\s+semana)\b/.test(t)) {
+      return { intent: 'PROMISE_PAYMENT', entities: ent, confidence: 0.65, topicShift: false };
     }
   }
 

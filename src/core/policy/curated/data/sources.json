@@ -1,0 +1,18 @@
+[
+  {
+    "sourceId": "CO-SFC-portal",
+    "title": "Superintendencia Financiera de Colombia - Información al consumidor",
+    "url": "https://www.superfinanciera.gov.co/",
+    "publisher": "Superintendencia Financiera de Colombia",
+    "countryCode": "CO",
+    "notes": "Referencia general; revisar enlaces específicos de cobranza cuando se definan."
+  },
+  {
+    "sourceId": "CO-SIC-portal",
+    "title": "Superintendencia de Industria y Comercio - Protección al consumidor",
+    "url": "https://www.sic.gov.co/",
+    "publisher": "Superintendencia de Industria y Comercio",
+    "countryCode": "CO",
+    "notes": "Referencia general; preferir documentos/guías oficiales en futuras versiones."
+  }
+]

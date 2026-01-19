@@ -5,7 +5,11 @@ const service = 'collections-ai-mvp';
 const config = {
   service,
   frameworkVersion: '3',
+  useDotenv: true,
   plugins: ['serverless-esbuild'],
+  package: {
+    patterns: ['src/conversation/prompts/**', 'src/core/policy/curated/data/**'],
+  },
   provider: {
     name: 'aws',
     profile: 'adrian-personal',
@@ -43,6 +47,13 @@ const config = {
       INBOUND_QUEUE_URL: { Ref: 'InboundQueue' } as any,
       INBOUND_QUEUE_ARN: { 'Fn::GetAtt': ['InboundQueue', 'Arn'] } as any,
 
+      // Conversation orchestration toggles (runtime)
+      CONVERSATION_MULTI_AGENT_ENABLED: "${env:CONVERSATION_MULTI_AGENT_ENABLED, 'true'}",
+      CONVERSATION_CONTEXT_PACK_V1_ENABLED: "${env:CONVERSATION_CONTEXT_PACK_V1_ENABLED, 'true'}",
+      CONV_V2_ENABLED: "${env:CONV_V2_ENABLED, 'true'}",
+      DIALOGUE_MANAGER_ENABLED: "${env:DIALOGUE_MANAGER_ENABLED, 'false'}",
+      DEBUG_CONVERSATION_PATH: "${env:DEBUG_CONVERSATION_PATH, 'false'}",
+
       // Whasapp webhook secrets
       // META_VERIFY_TOKEN: '${ssm:/${self:service}/${self:provider.stage}/metaVerifyToken}',
       // META_APP_SECRET_ARN: '${ssm:/${self:service}/${self:provider.stage}/metaAppSecretArn}',
@@ -57,9 +68,9 @@ const config = {
       HANDOFF_QUEUE_URL: { Ref: 'HandoffQueue' } as any,
 
       // Optional:
-      LLM_PROVIDER_JSON: '{"provider":"openai","model":"gpt-5-nano"}',
-      LLM_OPENAI_KEY_SECRET_ID:
-        'arn:aws:secretsmanager:us-east-1:293262438125:secret:telegram-bot-token-tenant-demo-dev-uaDZeE',
+      LLM_PROVIDER_JSON:
+        '${env:LLM_PROVIDER_JSON, \'{"provider":"openai","model":"gpt-4o-mini"}\'}',
+      LLM_OPENAI_KEY_SECRET_ID: '${env:LLM_OPENAI_KEY_SECRET_ID, ""}',
     },
     iam: {
       role: {
@@ -301,6 +312,24 @@ const config = {
       timeout: 20,
     },
 
+    clientConversationStatus: {
+      handler: 'src/handlers/clientConversationStatus.handler',
+      events: [{ httpApi: { path: '/client/conversations/status', method: 'get' } }],
+      timeout: 20,
+    },
+
+    clientCreateTelegramEnrollmentCode: {
+      handler: 'src/handlers/clientCreateTelegramEnrollmentCode.handler',
+      events: [{ httpApi: { path: '/client/debtors/telegram-enrollment-code', method: 'post' } }],
+      timeout: 20,
+    },
+
+    clientCloseDebtorCase: {
+      handler: 'src/handlers/clientCloseDebtorCase.handler',
+      events: [{ httpApi: { path: '/client/debtors/close', method: 'post' } }],
+      timeout: 20,
+    },
+
     platformAssignHandoff: {
       handler: 'src/handlers/platformAssignHandoff.handler',
       events: [
@@ -323,6 +352,19 @@ const config = {
       ],
       timeout: 20,
     },
+    platformListTenants: {
+      handler: 'src/handlers/platformListTenants.handler',
+      events: [
+        {
+          httpApi: {
+            path: '/platform/tenants',
+            method: 'get',
+            authorizer: { name: 'platformJwt' },
+          },
+        },
+      ],
+      timeout: 20,
+    },
     platformUpsertTenant: {
       handler: 'src/handlers/platformUpsertTenant.handler',
       events: [
@@ -330,6 +372,20 @@ const config = {
           httpApi: {
             path: '/platform/tenant',
             method: 'post',
+            authorizer: { name: 'platformJwt' },
+          },
+        },
+      ],
+      timeout: 20,
+    },
+
+    platformListCuratedPolicyVersions: {
+      handler: 'src/handlers/platformListCuratedPolicyVersions.handler',
+      events: [
+        {
+          httpApi: {
+            path: '/platform/curated-policy/versions',
+            method: 'get',
             authorizer: { name: 'platformJwt' },
           },
         },

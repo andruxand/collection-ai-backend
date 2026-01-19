@@ -43,9 +43,4 @@ export const SAFETY_PROMPT = `
 Verifica que el texto no contenga amenazas, lenguaje discriminatorio o instrucciones ilegales.
 Si está seguro, devuelve OK.
 `;
-
-// Simple proactive template function used by LLM writer. Return a draft string.
-export function proactiveTemplate(input: { tenant: any; debtor: any; conversation: any }) {
-  const tone = input.tenant?.policy?.tonePolicy?.T1 ?? 'amable';
-  return `Hola, este es un recordatorio en tono ${tone}. Por favor revisa tu deuda.`;
-}
+/* removed unused proactiveTemplate (duplicated in responseWriter) */

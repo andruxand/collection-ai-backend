@@ -1,0 +1,37 @@
+{
+  "countryCode": "CO",
+  "policyVersion": "2026-01-18.v1",
+  "effectiveDateIso": "2026-01-18",
+  "lastReviewedAtIso": "2026-01-18",
+  "hardRules": [
+    "Nunca amenaces con acciones legales, embargo, cárcel o 'cobro jurídico'.",
+    "No reveles información de la deuda a terceros; verifica identidad antes de hablar de monto/saldo/mora.",
+    "Evita lenguaje intimidatorio, discriminatorio o humillante.",
+    "WRONG_PERSON: no menciones saldo/mora/deuda/montos; confirma número equivocado y ofrece detener contactos.",
+    "DISPUTE: tono neutral; no discutas; ofrece escalar con asesor cuando esté habilitado."
+  ],
+  "softGuidelines": [
+    "Mensajes cortos y accionables.",
+    "Si hay ambigüedad de monto o fecha, pedir aclaración en una sola pregunta.",
+    "Evitar insistencia excesiva; respetar límites de contacto del tenant y del país."
+  ],
+  "disclaimers": [
+    "Este ruleset es un control interno de compliance; no es asesoría legal.",
+    "Las reglas se basan en fuentes públicas y pueden actualizarse sin previo aviso."
+  ],
+  "escalationRules": [
+    {
+      "triggers": ["SENSITIVE", "LEGAL_REQUEST"],
+      "action": "HUMAN_HANDOFF"
+    },
+    {
+      "triggers": ["DISPUTE_COMPLEX"],
+      "action": "HUMAN_HANDOFF"
+    },
+    {
+      "triggers": ["WRONG_PERSON"],
+      "action": "ASK_VERIFICATION"
+    }
+  ],
+  "sourceRefs": ["CO-SFC-portal", "CO-SIC-portal"]
+}

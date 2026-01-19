@@ -106,6 +106,19 @@
       "T2": "directo",
       "T3": "formal"
     },
+    "conversationPolicy": {
+      "contextPackV1": { "enabled": true, "defaultLastTurns": 10 },
+      "multiAgentOrchestration": {
+        "enabled": true,
+        "maxRepairAttempts": 2,
+        "budgets": {
+          "maxNegotiationRounds": 6,
+          "maxSlotAsksPerSlot": 2,
+          "maxOffTopicRedirects": 2,
+          "abuseStrikeLimit": 3
+        }
+      }
+    },
     "strategyPolicy": {
       "defaultObjective": "NEGOTIATE",
       "objectivePlaybook": {

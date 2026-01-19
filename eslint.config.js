@@ -1,10 +1,10 @@
-import tsPlugin from '@typescript-eslint/eslint-plugin';
-import tsParser from '@typescript-eslint/parser';
-import importPlugin from 'eslint-plugin-import';
-import prettierPlugin from 'eslint-plugin-prettier';
-import sortPlugin from 'eslint-plugin-simple-import-sort';
+const tsPlugin = require('@typescript-eslint/eslint-plugin');
+const tsParser = require('@typescript-eslint/parser');
+const importPlugin = require('eslint-plugin-import');
+const prettierPlugin = require('eslint-plugin-prettier');
+const sortPlugin = require('eslint-plugin-simple-import-sort');
 
-export default [
+module.exports = [
   {
     ignores: ['dist/**', '.serverless/**', 'node_modules/**'],
   },

@@ -69,8 +69,28 @@ Si ninguna te encaja, dime: ¿cuánto podrías pagar hoy o en cuántas cuotas te
     return `¿Quieres que te reenvíe el enlace para pagar hoy, o prefieres que armemos un acuerdo (cuotas/descuento) o una promesa de pago con fecha?`;
   }
 
+  if (state === 'NEGOTIATION') {
+    const hasAmount = typeof (input.conversation.slots?.promiseAmount as unknown) === 'number';
+    const hasDate = typeof (input.conversation.slots?.promiseDate as unknown) === 'string';
+    if (!hasAmount && !hasDate) {
+      return 'Perfecto. Para ayudarte: ¿qué valor podrías pagar y para qué fecha? (Ej: “20 mil el martes”)';
+    }
+
+    if (!hasDate) {
+      return 'Listo. ¿Para qué fecha podrías realizar el pago? (Ej: martes o 2026-01-20)';
+    }
+
+    if (!hasAmount) {
+      return 'Gracias. ¿Qué valor podrías pagar ese día? (Ej: 20000 o “20 mil”)';
+    }
+    return 'Perfecto. ¿Confirmas que mantienes el monto y la fecha para registrarlo?';
+  }
+
   if (state === 'DETAIL') {
-    return `Tu saldo pendiente es $${amount} COP. ¿Qué prefieres hacer: pagar hoy, hacer un acuerdo o prometer una fecha de pago?`;
+    if ((input.debtor.totalDueCop ?? 0) > 0) {
+      return `Tu saldo pendiente es $${amount} COP. ¿Qué prefieres hacer: pagar hoy, hacer un acuerdo o prometer una fecha de pago?`;
+    }
+    return '¿Qué prefieres hacer: pagar hoy, hacer un acuerdo o prometer una fecha de pago?';
   }
 
   // Default / welcome
@@ -212,7 +232,9 @@ Responde con 1 o 2. Si ninguna te sirve, dime: ¿cuánto podrías pagar hoy y pa
 
     case 'SHOW_DETAIL':
       draft = `Detalle de tu obligación:
-- Saldo pendiente: $${formatMoneyCop(input.debtor.totalDueCop)}
+- Saldo pendiente: ${
+        input.debtor.totalDueCop > 0 ? `$${formatMoneyCop(input.debtor.totalDueCop)} COP` : 'N/D'
+      }
 - Días en mora: ${input.debtor.daysPastDue}
 - Fecha de vencimiento: ${input.debtor.dueDate ?? 'N/D'}
 

@@ -42,6 +42,17 @@ flowchart TD
   OUTTICK --> AUD
 ```
 
+## Conversational Path (V2 por defecto)
+- Classifier (Structured Outputs) → `ConversationAgentV2` micro‑plan
+- `WriterAgent` (una pasada, sin A/B rerank)
+- Guard de política ligero (deterministic)
+- Sender (Telegram/WhatsApp)
+- Audit en DynamoDB
+
+Toggles:
+- `CONV_V2_ENABLED`: activa V2 (default `'true'` en deploy)
+- `CONVERSATION_MULTI_AGENT_ENABLED`: conserva V1 multi‑agente (tests unitarios y canary)
+
 ## Why SQS FIFO?
 - Guarantees ordering per debtor and avoids concurrent state races
 - Allows Lambda retries while keeping idempotency safe
