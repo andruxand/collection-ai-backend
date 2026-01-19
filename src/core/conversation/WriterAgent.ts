@@ -1,5 +1,6 @@
-import { type WriterView, WriterViewSchema } from '../../conversation/domain/agentViews';
-import { fillPrompt, loadPromptComposed } from '../../conversation/infra/promptLoader';
+import { type WriterView, WriterViewSchema } from '@/core/conversation/domain/agentViews';
+import { fillPrompt, loadPromptComposed } from '@/core/conversation/infra/promptLoader';
+
 import type { MultiAgentMemoryTurn, Tenant } from '../types';
 import {
   type ClassifierOutput,

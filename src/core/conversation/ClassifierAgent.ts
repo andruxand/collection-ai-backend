@@ -1,5 +1,5 @@
-import { type ClassifierView, ClassifierViewSchema } from '../../conversation/domain/agentViews';
-import { fillPrompt, loadPrompt } from '../../conversation/infra/promptLoader';
+import { type ClassifierView, ClassifierViewSchema } from '@/core/conversation/domain/agentViews';
+import { fillPrompt, loadPrompt } from '@/core/conversation/infra/promptLoader';
 import type { DebtorSnapshot, MultiAgentMemoryTurn, TenantPolicy } from '../types';
 import { sanitizeEntities, textSuggestsWrongPerson, textSuggestsPayNow } from './agentHelpers';
 import { type ClassifierOutput, CLASSIFIER_JSON_SCHEMA, ClassifierOutputSchema } from './schemas';

@@ -1,5 +1,5 @@
-import { type VerifierView, VerifierViewSchema } from '../../conversation/domain/agentViews';
-import { fillPrompt, loadPromptComposed } from '../../conversation/infra/promptLoader';
+import { type VerifierView, VerifierViewSchema } from '@/core/conversation/domain/agentViews';
+import { fillPrompt, loadPromptComposed } from '@/core/conversation/infra/promptLoader';
 import type { MultiAgentMemoryTurn } from '../types';
 import {
   type ClassifierOutput,

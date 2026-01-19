@@ -1,5 +1,5 @@
-import { type PlannerView, PlannerViewSchema } from '../../conversation/domain/agentViews';
-import { fillPrompt, loadPromptComposed } from '../../conversation/infra/promptLoader';
+import { type PlannerView, PlannerViewSchema } from '@/core/conversation/domain/agentViews';
+import { fillPrompt, loadPromptComposed } from '@/core/conversation/infra/promptLoader';
 import type { MultiAgentBudgetsSnapshot, MultiAgentMemoryTurn } from '../types';
 import {
   type ClassifierOutput,

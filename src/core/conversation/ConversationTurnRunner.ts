@@ -4,17 +4,17 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import crypto from 'crypto';
 import { DateTime } from 'luxon';
 
-import { runRepairAgent } from '../../conversation/agents/RepairAgent';
-import { runSummarizer } from '../../conversation/agents/SummarizerAgent';
-import { ContextAssembler } from '../../conversation/application/ContextAssembler';
-import { shouldSummarize } from '../../conversation/application/contextSelection';
+import { runRepairAgent } from '@/core/conversation/agents/RepairAgent';
+import { runSummarizer } from '@/core/conversation/agents/SummarizerAgent';
+import { ContextAssembler } from '@/core/conversation/application/ContextAssembler';
+import { shouldSummarize } from '@/core/conversation/application/contextSelection';
 import type {
   ClassifierView,
   PlannerView,
   SummarizerView,
   VerifierView,
   WriterView,
-} from '../../conversation/domain/agentViews';
+} from '@/core/conversation/domain/agentViews';
 import { type Offer, buildOffers } from '../offers/offerEngine';
 import { CuratedPolicyTool } from '../policy/curated/CuratedPolicyTool';
 import { putConversationTurnAudit } from '../store/repos';
