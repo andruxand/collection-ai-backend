@@ -8,7 +8,7 @@ const config = {
   useDotenv: true,
   plugins: ['serverless-esbuild'],
   package: {
-    patterns: ['src/conversation/prompts/**', 'src/core/policy/curated/data/**'],
+    patterns: ['src/core/conversation/prompts/**', 'src/core/policy/curated/data/**'],
   },
   provider: {
     name: 'aws',
@@ -440,6 +440,8 @@ const config = {
       minify: false,
       sourcemap: true,
       exclude: ['aws-sdk'],
+      tsconfig: 'tsconfig.json',
+      tsconfigPaths: true,
     },
   },
   resources: {
