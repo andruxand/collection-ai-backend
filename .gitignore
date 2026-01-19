@@ -19,3 +19,4 @@ tmp/
 # IDE/editor files
 .vscode/
 .DS_Store
+**/node_modules/

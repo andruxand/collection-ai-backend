@@ -4,7 +4,7 @@ import {
   clearPromptCache,
   loadPrompt,
   loadPromptComposed,
-} from '@/conversation/infra/promptLoader';
+} from '@/core/conversation/infra/promptLoader';
 
 describe('promptLoader', () => {
   test('loads prompt from file', () => {

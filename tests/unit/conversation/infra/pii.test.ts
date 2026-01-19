@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { maskPii } from '@/conversation/infra/pii';
+import { maskPii } from '@/core/conversation/infra/pii';
 
 describe('maskPii', () => {
   test('masks email', () => {
