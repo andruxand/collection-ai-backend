@@ -1,4 +1,4 @@
-import { fillPrompt, loadPromptComposed } from '../../conversation/infra/promptLoader';
+import { fillPrompt, loadPromptComposed } from '@/core/conversation/infra/promptLoader';
 import { type EvaluatorOutput, EVALUATOR_JSON_SCHEMA, EvaluatorOutputSchema } from './schemas';
 import { runStrictJsonAgent } from './strictJsonAgentRunner';
 
