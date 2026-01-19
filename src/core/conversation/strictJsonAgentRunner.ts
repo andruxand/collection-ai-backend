@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 
-import { fillPrompt, loadPrompt } from '../../conversation/infra/promptLoader';
+import { fillPrompt, loadPrompt } from '@/core/conversation/infra/promptLoader';
 import { llmJson } from '../llm/llmClient';
 
 export type StrictJsonAgentResult<T> =
