@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'vitest';
 
-import { selectLastTurnsCount, shouldSummarize } from '@/core/conversation/application/contextSelection';
+import {
+  selectLastTurnsCount,
+  shouldSummarize,
+} from '@/core/conversation/application/contextSelection';
 import type { ConversationState } from '@/core/types';
 
 function baseConv(overrides?: Partial<ConversationState>): ConversationState {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { nextBestAction } from '../src/core/nba/nextBestAction';
+import { nextBestAction } from '@/core/nba/nextBestAction';
 
 describe('nextBestAction (robust promise flow)', () => {
   it('treats UNKNOWN with amount/date entities as PROMISE_PAYMENT', () => {

@@ -4,7 +4,7 @@ import {
   preferReengageFromClassifier,
   sanitizeEntities,
   textSuggestsWrongPerson,
-} from '../../../../src/core/conversation/agentHelpers';
+} from '@/core/conversation/agentHelpers';
 
 describe('agentHelpers', () => {
   it('detects wrong person phrases', () => {

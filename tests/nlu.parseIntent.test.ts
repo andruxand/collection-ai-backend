@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { parseIntent } from '../src/core/nlu/parseIntent';
+import { parseIntent } from '@/core/nlu/parseIntent';
 
 describe('parseIntent (deterministic Spanish entities)', () => {
   it('extracts amount from "20 mil" in negotiation context', async () => {

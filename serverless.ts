@@ -1,4 +1,6 @@
 const service = 'collections-ai-mvp';
+// Enable TS path alias resolution for esbuild bundling
+const { tsconfigPathsPlugin } = require('esbuild-plugin-tsconfig-paths');
 
 // Use a loose cast because Serverless's TS definitions are strict about
 // CloudFormation intrinsics and template expressions used here.
@@ -441,7 +443,7 @@ const config = {
       sourcemap: true,
       exclude: ['aws-sdk'],
       tsconfig: 'tsconfig.json',
-      tsconfigPaths: true,
+      plugins: [tsconfigPathsPlugin()],
     },
   },
   resources: {
