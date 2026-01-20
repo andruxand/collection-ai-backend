@@ -50,8 +50,7 @@ flowchart TD
 - Audit en DynamoDB
 
 Toggles:
-- `CONV_V2_ENABLED`: activa V2 (default `'true'` en deploy)
-- `CONVERSATION_MULTI_AGENT_ENABLED`: conserva V1 multi‑agente (tests unitarios y canary)
+- `CONVERSATION_MULTI_AGENT_ENABLED`: habilita el camino multi‑agente legado (sólo canary/investigación)
 
 ## Why SQS FIFO?
 - Guarantees ordering per debtor and avoids concurrent state races

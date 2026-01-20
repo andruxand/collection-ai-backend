@@ -16,7 +16,7 @@ Para que todos los despliegues usen el perfil AWS correcto y sean escalables:
 
 # Collections AI MVP v2 (WhatsApp Cloud API + Telegram)
 
-Serverless Framework + Node 22 (runtime Lambda) + TypeScript.
+Serverless Framework + Node 20 (runtime Lambda) + TypeScript.
 
 ## Novedades de esta versión
 - Ingesta: `/admin/debtors` para upsert masivo de morosos (JSON) con lookup por phone/telegram.
@@ -88,10 +88,10 @@ Body:
 ## Documentation
 See `docs/` folder. Start with `docs/00-overview.md`.
 
-V2 Conversación (fluidez con guardrails mínimos):
+Conversación V2 (fluidez con guardrails mínimos):
 - Guía: `docs/AI_V2.md`
-- Flag runtime: `CONV_V2_ENABLED` (default `'true'` en serverless)
-- Tests unitarios siguen V1 (el flag no está en `process.env` al correr `vitest`).
+- Estado: V2 es la única ruta en `ConversationTurnRunner`.
+- Tests unitarios están alineados con V2 (se mockean `classifier` y `writer`).
 
 
 ## Testing

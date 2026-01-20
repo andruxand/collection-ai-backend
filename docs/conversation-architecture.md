@@ -1,6 +1,6 @@
-# Conversation Architecture (Multi-Agent)
+# Conversation Architecture (Legacy Multi-Agent)
 
-This backend supports a multi-agent conversation orchestration path (Classifier → Planner → Writer → Verifier → RepairLoop), behind a feature flag.
+Note: The production runner uses the simplified V2 path (Classifier → Writer + lightweight guard) by default. The multi-agent orchestration (Classifier → Planner → Writer → Verifier → RepairLoop) is kept as a legacy/research path and can be enabled only for canary/testing scenarios.
 
 ## Goals
 

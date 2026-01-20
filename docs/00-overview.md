@@ -32,7 +32,7 @@ DoD:
 - `docs/20-demo-accounts.md` (seed demo users/keys)
 
 ## Backend reference
-- `docs/AI_V2.md` (flujo conversacional V2, flag `CONV_V2_ENABLED`)
+- `docs/AI_V2.md` (flujo conversacional V2)
 - `docs/14-auth-model.md`
 - `docs/07-tenant-config.md`
 - `docs/18-country-policy.md`

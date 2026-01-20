@@ -65,13 +65,11 @@ sequenceDiagram
 
   D->>CH: Send message
   CH->>ORCH: NormalizedInboundEvent (SQS)
-  Note over ORCH: If CONVERSATION_MULTI_AGENT_ENABLED=true and tenant enables it, use Multi-Agent
-  alt Multi-Agent enabled (and LLM configured)
-    ORCH->>MA: runTurn(Classifier→Planner→Writer→Verifier)
-    MA-->>ORCH: replyText + nextConversation (+ optional handoffIntent/promise)
-    ORCH-->>CH: Send reply
-  else Multi-Agent disabled
-    Note over ORCH: If DIALOGUE_MANAGER_ENABLED=true, try DM
+  Note over ORCH: V2-only runner (Classifier→Writer + guard)
+  ORCH->>V2: runTurn(Classifier→Writer + guard)
+  V2-->>ORCH: replyText + nextConversation (+ optional handoffIntent/promise)
+  ORCH-->>CH: Send reply
+  Note over ORCH: If DIALOGUE_MANAGER_ENABLED=true, try DM
   alt Dialogue Manager enabled and valid
     ORCH->>DM: decide(nlu+nba) with strict JSON schema
   else DM disabled or invalid

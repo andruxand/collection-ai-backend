@@ -10,7 +10,7 @@ This keeps the system deterministic and auditable while still conversational.
 ## Current Default: ConversationAgentV2
 The backend now defaults to the simplified V2 conversational path focused on micro-planning + a single Writer pass with lightweight guards. See the detailed architecture in [collections-ai-backend/docs/AI_V2.md](collections-ai-backend/docs/AI_V2.md).
 
-- Env flag: `CONV_V2_ENABLED` controls the V2 path. Deploy environments default to `true`; unit tests keep V1 unless explicitly set to `true`.
+- Runner uses V2-only (no toggle).
 - Deterministic governors (policy, offer engine, safety filter) remain in effect.
 - Minimal templates are used only for predictable cases (e.g., `PAY_NOW`, info requests, off-topic close).
 
@@ -61,7 +61,7 @@ Optional (recommended) context pipeline:
 
 If any condition is not met, the orchestrator falls back to the deterministic/DM path.
 
-In V2-default environments, the system takes the V2 path first when `CONV_V2_ENABLED=true`, bypassing the multi-agent orchestration.
+Note: the runner takes the V2 path by default and does not rely on any flag to enable it.
 
 ### Why we still have regex/if-else at all
 Regex/if-else are intentionally kept **only** for:

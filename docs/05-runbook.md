@@ -140,28 +140,16 @@ Operational note:
   - missing `LLM_OPENAI_KEY_SECRET_ID`
   - secret access denied (IAM)
 
-## Observabilidad (A/B rerank)
+## Observabilidad (V2: sin A/B rerank)
 
-Para mejorar calidad sin aumentar costo siempre, el pipeline puede activar **A/B generation + reranking** solo en ciertos casos.
+En V2, el runner usa un único `WriterAgent` sin variantes A/B ni reranking. El campo `abRerankUsed` queda siempre en `false` y se mantiene únicamente por compatibilidad con auditorías/monitoreos legados.
 
-### Cuándo se activa
-- `classifier.confidence < 0.70`
-- flags: `ambiguousAmount` o `ambiguousDate` o `contradiction`
-- `negotiationRounds >= 2`
-- modo: `DISPUTE` o `ABUSE_DEESCALATION`
+### Qué guardar en auditoría
+- `abRerankUsed: false` en cada turno.
+- Priorizar métricas de V2: `templateUsed`, `handoffIntent`, y contadores (`offTopicRedirects`, `slotAsks`, `negotiationRounds`).
 
-### Qué guarda en auditoría
-- Siempre: `abRerankUsed: boolean` en el payload del turno.
-- Cuando `auditPolicy.storeDecisionPayloads = true`:
-  - `abRerank`: incluye `selectedVariant`, `scores` (si hubo evaluador), `variantA/B` (si aplica) y si se usó fallback.
-
-### Métrica sugerida: `ab_rerank_rate`
-Definición:
-$$ab\_rerank\_rate = \frac{\#turnos\ con\ abRerankUsed=true}{\#turnos\ totales}$$
-
-Uso práctico:
-- Útil para monitorear impacto de costo/latencia (debería ser bajo/estable).
-- Si sube abruptamente, revisa calidad del clasificador (baja confianza) o flags de ambigüedad/contradicción.
+### Métrica sugerida: transición de monitoreo
+- Migrar a `template_response_rate`, handoff rate y tasas de confirmación de promesas.
 
 ## Observabilidad (Templates determinísticas)
 
@@ -177,7 +165,7 @@ Definición:
 $$template\_response\_rate = \frac{\#turnos\ con\ templateUsed=true}{\#turnos\ totales}$$
 
 Uso práctico:
-- Si baja demasiado: el planner está evitando plantillas (p.ej. por ambigüedad) o no está seleccionándolas.
+- Si baja demasiado: el micro‑plan V2 está evitando plantillas (p.ej. por ambigüedad) o no las está seleccionando.
 - Si sube demasiado: valida que no se estén usando plantillas en casos que requieren matiz (negociación avanzada/ambigüedad).
 
 

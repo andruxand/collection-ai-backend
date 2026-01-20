@@ -52,7 +52,6 @@ const config = {
       // Conversation orchestration toggles (runtime)
       CONVERSATION_MULTI_AGENT_ENABLED: "${env:CONVERSATION_MULTI_AGENT_ENABLED, 'true'}",
       CONVERSATION_CONTEXT_PACK_V1_ENABLED: "${env:CONVERSATION_CONTEXT_PACK_V1_ENABLED, 'true'}",
-      CONV_V2_ENABLED: "${env:CONV_V2_ENABLED, 'true'}",
       DIALOGUE_MANAGER_ENABLED: "${env:DIALOGUE_MANAGER_ENABLED, 'false'}",
       DEBUG_CONVERSATION_PATH: "${env:DEBUG_CONVERSATION_PATH, 'false'}",
 
@@ -443,7 +442,7 @@ const config = {
       sourcemap: true,
       exclude: ['aws-sdk'],
       tsconfig: 'tsconfig.json',
-      plugins: [tsconfigPathsPlugin()],
+      plugins: [tsconfigPathsPlugin({ tsconfig: 'tsconfig.json', cwd: __dirname })],
     },
   },
   resources: {
